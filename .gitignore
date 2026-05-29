@@ -52,3 +52,4 @@ app.*.map.json
 .gemini/
 .antigravitycli/
 scaffold-feature.skill
+gemini.md
