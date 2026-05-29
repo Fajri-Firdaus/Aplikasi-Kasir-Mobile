@@ -139,7 +139,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           style: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w900,
-            fontStyle: FontStyle.italic,
+            // fontStyle: FontStyle.italic,
             color: Color(0xFF111827),
             letterSpacing: 1.5,
           ),
@@ -240,7 +240,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           style: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w900,
-            fontStyle: FontStyle.italic,
+            // fontStyle: FontStyle.italic,
             color: Color(0xFF111827),
             letterSpacing: 1.5,
           ),
