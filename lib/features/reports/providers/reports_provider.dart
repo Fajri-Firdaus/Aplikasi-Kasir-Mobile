@@ -53,6 +53,10 @@ class ReportsNotifier extends Notifier<ReportData> {
     }
   }
 
+  Future<void> refresh() async {
+    await loadReportData(state.startDate, state.endDate);
+  }
+
   void setFilter({required DateTime startDate, required DateTime endDate}) {
     loadReportData(startDate, endDate);
   }

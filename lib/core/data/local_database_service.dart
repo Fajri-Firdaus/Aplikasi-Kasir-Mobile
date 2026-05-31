@@ -158,61 +158,6 @@ class LocalDatabaseService {
       'role': 'admin',
     });
 
-    // Seed cashier user
-    await db.insert('users', {
-      'full_name': 'Budi Santoso',
-      'email': 'budi@pos.com',
-      'username': 'budi',
-      'password': 'MTIzNDU2', // Base64 for '123456'
-      'role': 'cashier',
-    });
-
-    // Seed default categories
-    final makananId = await db.insert('categories', {'name': 'Makanan'});
-    final minumanId = await db.insert('categories', {'name': 'Minuman'});
-
-    // Seed default products
-    await db.insert('products', {
-      'sku': 'MK001',
-      'name': 'Nasi Goreng Spesial',
-      'category_id': makananId,
-      'buy_price': 15000.0,
-      'sell_price': 25000.0,
-      'stock': 50,
-      'image_path': '',
-      'is_active': 1
-    });
-    await db.insert('products', {
-      'sku': 'MK002',
-      'name': 'Mie Goreng Seafood',
-      'category_id': makananId,
-      'buy_price': 18000.0,
-      'sell_price': 30000.0,
-      'stock': 30,
-      'image_path': '',
-      'is_active': 1
-    });
-    await db.insert('products', {
-      'sku': 'MN001',
-      'name': 'Es Teh Manis',
-      'category_id': minumanId,
-      'buy_price': 1500.0,
-      'sell_price': 5000.0,
-      'stock': 100,
-      'image_path': '',
-      'is_active': 1
-    });
-    await db.insert('products', {
-      'sku': 'MN002',
-      'name': 'Kopi Susu Gula Aren',
-      'category_id': minumanId,
-      'buy_price': 8000.0,
-      'sell_price': 18000.0,
-      'stock': 40,
-      'image_path': '',
-      'is_active': 1
-    });
-
     // Seed default store settings
     await db.insert('store_settings', {
       'id': 1,

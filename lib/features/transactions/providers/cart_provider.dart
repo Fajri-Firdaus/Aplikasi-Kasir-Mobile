@@ -3,6 +3,7 @@ import '../data/cart_item.dart';
 import '../data/transaction_local_repository.dart';
 import '../../products/data/product.dart';
 import '../../products/providers/product_provider.dart';
+import '../../reports/providers/reports_provider.dart';
 
 final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(CartNotifier.new);
 
@@ -72,6 +73,9 @@ class CartNotifier extends Notifier<List<CartItem>> {
       cashReceived: cashReceived,
       items: state,
     );
+
+    // Refresh reports data after successful checkout
+    ref.read(reportsProvider.notifier).refresh();
 
     // Refresh stocks locally in the productNotifierProvider
     for (final item in state) {
