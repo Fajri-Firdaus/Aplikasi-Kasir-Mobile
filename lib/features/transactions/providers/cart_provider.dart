@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/cart_item.dart';
+import '../data/transaction_local_repository.dart';
 import '../../products/data/product.dart';
+import '../../products/providers/product_provider.dart';
 
 final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(CartNotifier.new);
 
@@ -48,5 +50,34 @@ class CartNotifier extends Notifier<List<CartItem>> {
 
   double get totalAmount {
     return state.fold(0, (total, item) => total + item.totalPrice);
+  }
+
+  Future<void> checkout({
+    required String paymentMethod,
+    required double cashReceived,
+  }) async {
+    final repository = ref.read(transactionRepositoryProvider);
+    final productNotifier = ref.read(productNotifierProvider.notifier);
+
+    // Get active shift or open a dummy one if none is active (e.g. for user ID 1)
+    var activeShift = await repository.getActiveShift();
+    if (activeShift == null) {
+      activeShift = await repository.openShift('1', 500000.0);
+    }
+
+    await repository.checkout(
+      shiftId: activeShift.id,
+      totalAmount: totalAmount,
+      paymentMethod: paymentMethod,
+      cashReceived: cashReceived,
+      items: state,
+    );
+
+    // Refresh stocks locally in the productNotifierProvider
+    for (final item in state) {
+      productNotifier.decrementStock(item.product.id, item.quantity);
+    }
+
+    clearCart();
   }
 }

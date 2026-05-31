@@ -1,0 +1,211 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/data/local_database_service.dart';
+
+final reportRepositoryProvider = Provider<ReportLocalRepository>((ref) {
+  final dbService = ref.watch(localDatabaseServiceProvider);
+  return ReportLocalRepository(dbService);
+});
+
+class FinancialSummary {
+  final double totalRevenue;
+  final double totalHpp;
+  final double totalProfit;
+  final int totalTransactions;
+
+  FinancialSummary({
+    required this.totalRevenue,
+    required this.totalHpp,
+    required this.totalProfit,
+    required this.totalTransactions,
+  });
+}
+
+class HourlySales {
+  final String hour;
+  final double totalSales;
+
+  HourlySales({required this.hour, required this.totalSales});
+}
+
+class TopProduct {
+  final String name;
+  final int totalSold;
+
+  TopProduct({required this.name, required this.totalSold});
+}
+
+class CashierPerformance {
+  final String username;
+  final int totalTransactions;
+  final double totalSales;
+
+  CashierPerformance({
+    required this.username,
+    required this.totalTransactions,
+    required this.totalSales,
+  });
+}
+
+class ReportLocalRepository {
+  final LocalDatabaseService _dbService;
+
+  ReportLocalRepository(this._dbService);
+
+  // Home Performance - Today Summary
+  Future<FinancialSummary> getTodaySummary() async {
+    final db = await _dbService.database;
+    
+    // Count transactions first
+    final countMaps = await db.rawQuery('''
+      SELECT COUNT(id) AS count
+      FROM transactions
+      WHERE DATE(created_at) = DATE('now', 'localtime') AND status != 'void'
+    ''');
+    final totalTxns = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
+
+    // Get revenue and profit
+    final maps = await db.rawQuery('''
+      SELECT 
+          COALESCE(SUM(t.total_amount), 0.0) AS penjualan_hari_ini,
+          COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS hpp_hari_ini
+      FROM transactions t
+      LEFT JOIN transaction_details td ON t.id = td.transaction_id
+      WHERE DATE(t.created_at) = DATE('now', 'localtime') AND t.status != 'void'
+    ''');
+
+    double revenue = 0.0;
+    double hpp = 0.0;
+
+    if (maps.isNotEmpty) {
+      revenue = (maps.first['penjualan_hari_ini'] as num? ?? 0.0).toDouble();
+      hpp = (maps.first['hpp_hari_ini'] as num? ?? 0.0).toDouble();
+    }
+
+    return FinancialSummary(
+      totalRevenue: revenue,
+      totalHpp: hpp,
+      totalProfit: revenue - hpp,
+      totalTransactions: totalTxns,
+    );
+  }
+
+  // Financial summary over custom date range
+  Future<FinancialSummary> getFinancialSummary(DateTime start, DateTime end) async {
+    final db = await _dbService.database;
+    final startStr = '${start.toIso8601String().split('T').first} 00:00:00';
+    final endStr = '${end.toIso8601String().split('T').first} 23:59:59';
+
+    final countMaps = await db.rawQuery('''
+      SELECT COUNT(id) AS count
+      FROM transactions
+      WHERE created_at BETWEEN ? AND ? AND status != 'void'
+    ''', [startStr, endStr]);
+    final totalTxns = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
+
+    final maps = await db.rawQuery('''
+      SELECT 
+          COALESCE(SUM(t.total_amount), 0.0) AS total_pendapatan,
+          COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS total_hpp
+      FROM transactions t
+      LEFT JOIN transaction_details td ON t.id = td.transaction_id
+      WHERE t.created_at BETWEEN ? AND ? AND t.status != 'void'
+    ''', [startStr, endStr]);
+
+    double revenue = 0.0;
+    double hpp = 0.0;
+
+    if (maps.isNotEmpty) {
+      revenue = (maps.first['total_pendapatan'] as num? ?? 0.0).toDouble();
+      hpp = (maps.first['total_hpp'] as num? ?? 0.0).toDouble();
+    }
+
+    return FinancialSummary(
+      totalRevenue: revenue,
+      totalHpp: hpp,
+      totalProfit: revenue - hpp,
+      totalTransactions: totalTxns,
+    );
+  }
+
+  // Hourly Sales Trend for Today
+  Future<List<HourlySales>> getTodayHourlySales() async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+          STRFTIME('%H:00', created_at) AS jam,
+          SUM(total_amount) AS total_omzet
+      FROM transactions
+      WHERE DATE(created_at) = DATE('now', 'localtime') AND status != 'void'
+      GROUP BY jam
+      ORDER BY jam ASC
+    ''');
+
+    return maps.map((row) {
+      return HourlySales(
+        hour: row['jam'] as String,
+        totalSales: (row['total_omzet'] as num).toDouble(),
+      );
+    }).toList();
+  }
+
+  // Top 5 Selling Products today
+  Future<List<TopProduct>> getTodayTopProducts() async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+          p.name,
+          SUM(td.quantity) AS total_terjual
+      FROM transaction_details td
+      JOIN products p ON td.product_id = p.id
+      JOIN transactions t ON td.transaction_id = t.id
+      WHERE DATE(t.created_at) = DATE('now', 'localtime') AND t.status != 'void'
+      GROUP BY p.id
+      ORDER BY total_terjual DESC
+      LIMIT 5
+    ''');
+
+    return maps.map((row) {
+      return TopProduct(
+        name: row['name'] as String,
+        totalSold: row['total_terjual'] as int,
+      );
+    }).toList();
+  }
+
+  // Low Stock warnings
+  Future<List<Map<String, dynamic>>> getLowStockProducts() async {
+    final db = await _dbService.database;
+    return await db.rawQuery('''
+      SELECT name, stock 
+      FROM products 
+      WHERE is_active = 1
+      ORDER BY stock ASC 
+      LIMIT 3
+    ''');
+  }
+
+  // Cashier performance report
+  Future<List<CashierPerformance>> getCashierPerformance() async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+          u.username,
+          COUNT(DISTINCT t.id) AS total_transaksi_ditangani,
+          SUM(t.total_amount) AS total_nominal_penjualan
+      FROM transactions t
+      JOIN shifts s ON t.shift_id = s.id
+      JOIN users u ON s.user_id = u.id
+      WHERE t.status != 'void'
+      GROUP BY u.id
+      ORDER BY total_nominal_penjualan DESC
+    ''');
+
+    return maps.map((row) {
+      return CashierPerformance(
+        username: row['username'] as String,
+        totalTransactions: row['total_transaksi_ditangani'] as int,
+        totalSales: (row['total_nominal_penjualan'] as num).toDouble(),
+      );
+    }).toList();
+  }
+}

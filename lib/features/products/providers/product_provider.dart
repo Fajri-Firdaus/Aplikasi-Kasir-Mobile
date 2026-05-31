@@ -1,15 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/product.dart';
-
-// --- Dummy initial data ---
-final _initialProducts = [
-  const Product(id: '1', name: 'Nasi Goreng Spesial', price: 25000, category: 'Makanan', imageUrl: 'https://picsum.photos/200', stock: 50),
-  const Product(id: '2', name: 'Mie Goreng Seafood', price: 30000, category: 'Makanan', imageUrl: 'https://picsum.photos/201', stock: 30),
-  const Product(id: '3', name: 'Es Teh Manis', price: 5000, category: 'Minuman', imageUrl: 'https://picsum.photos/202', stock: 100),
-  const Product(id: '4', name: 'Kopi Susu Gula Aren', price: 18000, category: 'Minuman', imageUrl: 'https://picsum.photos/203', stock: 40),
-  const Product(id: '5', name: 'Ayam Bakar Madu', price: 35000, category: 'Makanan', imageUrl: 'https://picsum.photos/204', stock: 20),
-  const Product(id: '6', name: 'Jus Jeruk', price: 12000, category: 'Minuman', imageUrl: 'https://picsum.photos/205', stock: 25),
-];
+import '../data/product_local_repository.dart';
 
 // NotifierProvider for full CRUD support (required by tests & UI)
 final productNotifierProvider = NotifierProvider<ProductNotifier, List<Product>>(ProductNotifier.new);
@@ -18,22 +9,52 @@ final productNotifierProvider = NotifierProvider<ProductNotifier, List<Product>>
 final productsProvider = productNotifierProvider;
 
 class ProductNotifier extends Notifier<List<Product>> {
+  late final ProductLocalRepository _repository;
+
   @override
-  List<Product> build() => List.from(_initialProducts);
-
-  void addProduct(Product product) {
-    state = [...state, product];
+  List<Product> build() {
+    _repository = ref.watch(productRepositoryProvider);
+    Future.microtask(() => loadProducts());
+    return [];
   }
 
-  void updateProduct(String id, Product updated) {
-    state = [
-      for (final p in state)
-        if (p.id == id) updated else p,
-    ];
+  Future<void> loadProducts() async {
+    try {
+      final list = await _repository.getAll();
+      state = list;
+    } catch (e) {
+      // Fail silently or handle error in state
+    }
   }
 
-  void deleteProduct(String id) {
-    state = state.where((p) => p.id != id).toList();
+  Future<void> addProduct(Product product) async {
+    try {
+      final newProduct = await _repository.create(product);
+      state = [...state, newProduct];
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  Future<void> updateProduct(String id, Product updated) async {
+    try {
+      await _repository.update(id, updated);
+      state = [
+        for (final p in state)
+          if (p.id == id) updated else p,
+      ];
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  Future<void> deleteProduct(String id) async {
+    try {
+      await _repository.delete(id);
+      state = state.where((p) => p.id != id).toList();
+    } catch (e) {
+      // Handle error
+    }
   }
 
   void decrementStock(String id, int quantity) {

@@ -43,7 +43,10 @@ Ini adalah direktori tempat 99% penulisan kode (Dart) dilakukan. Proyek ini meng
     *   `core/router/`: Mengatur navigasi aplikasi (`GoRouter`). Tambahkan *route* baru di sini.
     *   `core/theme/`: Definisi warna, tipografi, dan tema aplikasi (Dark/Light).
     *   `core/hardware/`: Kelas interaksi khusus (misalnya API untuk Bluetooth Printer, koneksi Cash Drawer).
-    *   `core/data/`: Komponen data global seperti konfigurasi HttpClient (Dio), pengaturan Local Storage (SharedPreferences/Hive).
+    *   `core/data/`: Komponen data global.
+        *   `local_database_service.dart`: Jantung persistensi data menggunakan SQLite (SQFLite). Mengelola siklus hidup database, pembuatan tabel (DDL), dan seeding data awal.
+        *   `repository_interface.dart`: Kontrak abstrak untuk repositori agar tetap konsisten dan mudah diuji.
+        *   Konfigurasi HttpClient (Dio) dan Shared Preferences juga dikelola di sini.
 
 ### `lib/features/`
 *   **Deskripsi:** Kumpulan dari berbagai modul mandiri. Setiap *feature* (misal: `auth`, `products`, `transactions`) tidak boleh bergantung erat pada *feature* lain (kecuali melalui `core/`).

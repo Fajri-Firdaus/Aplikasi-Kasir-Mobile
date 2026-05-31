@@ -12,7 +12,7 @@ Aplikasi Mobile Point of Sales (POS) yang dirancang untuk membantu pengelolaan t
 
 ### Backend & API
 - **HTTP Client:** [Dio](https://pub.dev/packages/dio) (sudah terkonfigurasi di `pubspec.yaml`, siap digunakan untuk integrasi API).
-- **Status Saat Ini:** Prototype menggunakan data lokal/dummy (In-memory storage).
+- **Status Saat Ini:** Implementasi penyimpanan lokal permanen menggunakan SQLite. Prototype UI masih didukung oleh repository lokal yang mengambil data dari database nyata.
 
 ### Database & Persistence
 - **Local Storage:** [SQLite (sqflite)](https://pub.dev/packages/sqflite) digunakan sebagai penyimpanan database relasional utama untuk produk, transaksi, shift, dan user.

@@ -235,18 +235,38 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _PaymentSheet(total: total, formatCurrency: _formatCurrency, onSuccess: () {
-        ref.read(cartProvider.notifier).clearCart();
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(children: [Icon(Icons.check_circle, color: Colors.white), SizedBox(width: 8), Text('Transaksi berhasil!')]),
-            backgroundColor: const Color(0xFF16A34A),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        context.go('/dashboard');
+      builder: (_) => _PaymentSheet(total: total, formatCurrency: _formatCurrency, onSuccess: (method, cash) async {
+        final paymentMethod = method == 'Tunai' ? 'cash' : (method == 'QRIS' ? 'qris' : 'transfer');
+        final cashReceived = method == 'Tunai' ? cash : total;
+
+        try {
+          await ref.read(cartProvider.notifier).checkout(
+            paymentMethod: paymentMethod,
+            cashReceived: cashReceived,
+          );
+
+          if (!context.mounted) return;
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(children: [Icon(Icons.check_circle, color: Colors.white), SizedBox(width: 8), Text('Transaksi berhasil!')]),
+              backgroundColor: const Color(0xFF16A34A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          context.go('/dashboard');
+        } catch (e) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(children: [const Icon(Icons.error_outline, color: Colors.white), const SizedBox(width: 8), Expanded(child: Text('Gagal menyimpan transaksi: $e'))]),
+              backgroundColor: const Color(0xFFDC2626),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }),
     );
   }
@@ -454,7 +474,7 @@ class _CartSheet extends StatelessWidget {
 class _PaymentSheet extends StatefulWidget {
   final double total;
   final String Function(int) formatCurrency;
-  final VoidCallback onSuccess;
+  final void Function(String method, double cash) onSuccess;
   const _PaymentSheet({required this.total, required this.formatCurrency, required this.onSuccess});
   @override
   State<_PaymentSheet> createState() => _PaymentSheetState();
@@ -556,7 +576,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
           ],
           const SizedBox(height: 20),
           SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: _canPay ? widget.onSuccess : null,
+            onPressed: _canPay ? () => widget.onSuccess(_selectedMethod, _cashAmount) : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),

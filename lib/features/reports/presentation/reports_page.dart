@@ -14,6 +14,34 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   bool _showDateFilter = false;
   bool _showExportMenu = false;
 
+  void _updateDateFilter(String opt) {
+    final now = DateTime.now();
+    DateTime start;
+    DateTime end = now;
+
+    switch (opt) {
+      case 'Hari Ini':
+        start = now;
+        break;
+      case '7 Hari':
+        start = now.subtract(const Duration(days: 6));
+        break;
+      case '30 Hari':
+        start = now.subtract(const Duration(days: 29));
+        break;
+      case 'Bulan Ini':
+        start = DateTime(now.year, now.month, 1);
+        break;
+      case 'Tahun Ini':
+        start = DateTime(now.year, 1, 1);
+        break;
+      default:
+        start = now;
+    }
+
+    ref.read(reportsProvider.notifier).setFilter(startDate: start, endDate: end);
+  }
+
   static const _dateOptions = ['Hari Ini', '7 Hari', '30 Hari', 'Bulan Ini', 'Tahun Ini'];
   static const _tabs = [
     {'key': 'financial', 'label': 'Keuangan', 'icon': Icons.attach_money},
@@ -113,7 +141,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 children: _dateOptions.map((opt) => InkWell(
                   onTap: () {
                     setState(() { _selectedDateLabel = opt; _showDateFilter = false; });
-                    // Trigger provider filter update if needed
+                    _updateDateFilter(opt);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

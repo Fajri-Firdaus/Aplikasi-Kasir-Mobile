@@ -1,33 +1,20 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-// ===== DATA MODEL =====
-class AppUser {
-  final String id;
-  final String name;
-  final String username;
-  final String email;
-  final String role; // 'admin' | 'kasir'
-  final bool isActive;
-  final String createdAt;
+part 'app_user.freezed.dart';
+part 'app_user.g.dart';
 
-  const AppUser({
-    required this.id,
-    required this.name,
-    required this.username,
-    required this.email,
-    required this.role,
-    this.isActive = true,
-    required this.createdAt,
-  });
+@freezed
+abstract class AppUser with _$AppUser {
+  const factory AppUser({
+    required String id,
+    required String name,
+    required String username,
+    required String email,
+    required String role, // 'admin' | 'kasir' / 'cashier'
+    @Default(true) bool isActive,
+    required String createdAt,
+    String? password,
+  }) = _AppUser;
 
-  AppUser copyWith({String? name, String? username, String? email, String? role, bool? isActive}) {
-    return AppUser(
-      id: id,
-      name: name ?? this.name,
-      username: username ?? this.username,
-      email: email ?? this.email,
-      role: role ?? this.role,
-      isActive: isActive ?? this.isActive,
-      createdAt: createdAt,
-    );
-  }
+  factory AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);
 }

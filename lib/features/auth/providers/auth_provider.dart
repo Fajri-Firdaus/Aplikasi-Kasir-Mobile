@@ -1,14 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../users/data/user_local_repository.dart';
 
 final authProvider = NotifierProvider<AuthNotifier, bool>(AuthNotifier.new);
 
 class AuthNotifier extends Notifier<bool> {
+  late final UserLocalRepository _userRepository;
+
   @override
   bool build() {
-    // Initial state is false, but we check shared preferences asynchronously.
-    // The UI should handle this fast enough, or we could use AsyncNotifier if needed.
-    // For simplicity, we keep it as a sync Notifier and update state later.
+    _userRepository = ref.watch(userRepositoryProvider);
     _checkLoginStatus();
     return false;
   }
@@ -20,20 +21,25 @@ class AuthNotifier extends Notifier<bool> {
   }
 
   Future<void> login(String username, String password) async {
-    // Dummy login logic
-    await Future.delayed(const Duration(seconds: 1)); // Simulate network request
-    if (username.isNotEmpty && password == "123456") {
+    await Future.delayed(const Duration(milliseconds: 500)); // Brief UX pause
+    
+    final authenticatedUser = await _userRepository.authenticate(username, password);
+    if (authenticatedUser != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('loggedInUserId', authenticatedUser.id);
+      await prefs.setString('loggedInUserRole', authenticatedUser.role);
       state = true;
     } else {
-      throw Exception('Invalid username or password');
+      throw Exception('Username atau password salah.');
     }
   }
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', false);
+    await prefs.remove('loggedInUserId');
+    await prefs.remove('loggedInUserRole');
     state = false;
   }
 }

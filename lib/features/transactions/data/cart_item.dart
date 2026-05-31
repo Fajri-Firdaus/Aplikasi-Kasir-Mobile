@@ -1,20 +1,19 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../products/data/product.dart';
 
-class CartItem {
-  final Product product;
-  final int quantity;
+part 'cart_item.freezed.dart';
+part 'cart_item.g.dart';
 
-  const CartItem({
-    required this.product,
-    this.quantity = 1,
-  });
+@freezed
+abstract class CartItem with _$CartItem {
+  const CartItem._(); // Required for custom getters
 
-  CartItem copyWith({Product? product, int? quantity}) {
-    return CartItem(
-      product: product ?? this.product,
-      quantity: quantity ?? this.quantity,
-    );
-  }
+  const factory CartItem({
+    required Product product,
+    @Default(1) int quantity,
+  }) = _CartItem;
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => _$CartItemFromJson(json);
 
   double get totalPrice => product.price * quantity;
 }

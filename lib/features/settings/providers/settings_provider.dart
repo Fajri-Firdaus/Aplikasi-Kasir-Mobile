@@ -1,34 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-class AppSettings {
-  final String storeName;
-  final String storeAddress;
-  final String storePhone;
-
-  const AppSettings({
-    required this.storeName,
-    required this.storeAddress,
-    required this.storePhone,
-  });
-
-  AppSettings copyWith({
-    String? storeName,
-    String? storeAddress,
-    String? storePhone,
-  }) {
-    return AppSettings(
-      storeName: storeName ?? this.storeName,
-      storeAddress: storeAddress ?? this.storeAddress,
-      storePhone: storePhone ?? this.storePhone,
-    );
-  }
-}
+import '../data/app_settings.dart';
+import '../data/settings_local_repository.dart';
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
 
 class SettingsNotifier extends Notifier<AppSettings> {
+  late final SettingsLocalRepository _repository;
+
   @override
   AppSettings build() {
+    _repository = ref.watch(settingsRepositoryProvider);
+    Future.microtask(() => loadSettings());
     return const AppSettings(
       storeName: 'Mobile POS Dashboard',
       storeAddress: 'Jl. Merdeka No. 123',
@@ -36,15 +18,30 @@ class SettingsNotifier extends Notifier<AppSettings> {
     );
   }
 
-  void updateStoreName(String name) {
-    state = state.copyWith(storeName: name);
+  Future<void> loadSettings() async {
+    try {
+      final settings = await _repository.getSettings();
+      state = settings;
+    } catch (e) {
+      // Handle error
+    }
   }
 
-  void updateStoreAddress(String address) {
-    state = state.copyWith(storeAddress: address);
+  Future<void> updateStoreName(String name) async {
+    final updated = state.copyWith(storeName: name);
+    state = updated;
+    await _repository.updateSettings(updated);
   }
 
-  void updateStorePhone(String phone) {
-    state = state.copyWith(storePhone: phone);
+  Future<void> updateStoreAddress(String address) async {
+    final updated = state.copyWith(storeAddress: address);
+    state = updated;
+    await _repository.updateSettings(updated);
+  }
+
+  Future<void> updateStorePhone(String phone) async {
+    final updated = state.copyWith(storePhone: phone);
+    state = updated;
+    await _repository.updateSettings(updated);
   }
 }
