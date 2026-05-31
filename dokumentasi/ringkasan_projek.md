@@ -15,10 +15,17 @@ Aplikasi Mobile Point of Sales (POS) yang dirancang untuk membantu pengelolaan t
 - **Status Saat Ini:** Prototype menggunakan data lokal/dummy (In-memory storage).
 
 ### Database & Persistence
-- **Local Storage:** [Shared Preferences](https://pub.dev/packages/shared_preferences) digunakan untuk penyimpanan data persisten sederhana (seperti setting aplikasi atau sesi user).
-- **Data Serialization:** [Freezed](https://pub.dev/packages/freezed) dan [JSON Serializable](https://pub.dev/packages/json_serializable) tersedia untuk menangani model data kompleks dan konversi JSON.
+- **Local Storage:** [SQLite (sqflite)](https://pub.dev/packages/sqflite) digunakan sebagai penyimpanan database relasional utama untuk produk, transaksi, shift, dan user.
+- **Data Serialization:** [Freezed](https://pub.dev/packages/freezed) dan [JSON Serializable](https://pub.dev/packages/json_serializable) digunakan untuk memetakan data database ke objek Dart.
+- **Simple Persistence:** [Shared Preferences](https://pub.dev/packages/shared_preferences) digunakan untuk menyimpan pengaturan aplikasi ringan.
 
-## 3. Coding Standards
+## 3. Fitur Utama & Struktur Data
+- **Manajemen Katalog:** Produk dengan SKU, kategori, stok, serta pelacakan harga beli (modal) dan harga jual.
+- **Manajemen Shift:** Pelacakan saldo laci kasir (starting/ending cash) dan audit penjualan per sesi kasir.
+- **Transaksi & Inventaris:** Pencatatan detail transaksi dengan snapshot harga historis dan otomatisasi pemotongan stok.
+- **Laporan Cerdas:** Query agregat untuk menghitung keuntungan bersih, pendapatan per kategori, dan peringatan stok menipis.
+
+## 4. Coding Standards
 ### Arsitektur
 Menggunakan pola **Feature-First Architecture**:
 - `lib/core/`: Berisi logika bersama seperti routing, tema, antarmuka hardware (printer/scanner), dan konfigurasi global.
