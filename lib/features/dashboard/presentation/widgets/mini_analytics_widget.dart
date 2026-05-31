@@ -5,24 +5,12 @@ import '../../../reports/providers/reports_provider.dart';
 class MiniAnalyticsWidget extends ConsumerWidget {
   const MiniAnalyticsWidget({super.key});
 
-  static const _hourlySales = [
-    {'hour': '08', 'sales': 450000},
-    {'hour': '09', 'sales': 720000},
-    {'hour': '10', 'sales': 890000},
-    {'hour': '11', 'sales': 1200000},
-    {'hour': '12', 'sales': 1850000},
-    {'hour': '13', 'sales': 1650000},
-    {'hour': '14', 'sales': 980000},
-    {'hour': '15', 'sales': 1100000},
-    {'hour': '16', 'sales': 1420000},
-  ];
-
-  static const _topProducts = [
-    {'rank': 1, 'name': 'Nasi Goreng Spesial', 'sold': 48, 'color': Color(0xFFFBBF24)},
-    {'rank': 2, 'name': 'Es Teh Manis', 'sold': 42, 'color': Color(0xFFD1D5DB)},
-    {'rank': 3, 'name': 'Ayam Bakar', 'sold': 35, 'color': Color(0xFFFB923C)},
-    {'rank': 4, 'name': 'Mie Goreng', 'sold': 28, 'color': Color(0xFF93C5FD)},
-    {'rank': 5, 'name': 'Kopi Susu', 'sold': 25, 'color': Color(0xFFC4B5FD)},
+  static const _rankColors = [
+    Color(0xFFFBBF24), // Rank 1
+    Color(0xFFD1D5DB), // Rank 2
+    Color(0xFFFB923C), // Rank 3
+    Color(0xFF93C5FD), // Rank 4
+    Color(0xFFC4B5FD), // Rank 5
   ];
 
   String _formatCurrencyFull(int val) {
@@ -37,13 +25,20 @@ class MiniAnalyticsWidget extends ConsumerWidget {
       children: [
         _buildSalesTrendCard(reportData),
         const SizedBox(height: 12),
-        _buildTopProductsCard(),
+        _buildTopProductsCard(reportData),
       ],
     );
   }
 
   Widget _buildSalesTrendCard(ReportData reportData) {
-    final maxSales = _hourlySales.map((e) => e['sales'] as int).reduce((a, b) => a > b ? a : b);
+    final hourlySales = reportData.hourlySales;
+    
+    // Find max sales for scaling the chart, default to 1 to avoid division by zero
+    double maxSales = 1.0;
+    if (hourlySales.isNotEmpty) {
+      final foundMax = hourlySales.map((e) => e.totalSales).reduce((a, b) => a > b ? a : b);
+      if (foundMax > 0) maxSales = foundMax;
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -65,7 +60,7 @@ class MiniAnalyticsWidget extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
                   Text('Tren Penjualan Hari Ini', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-                  Text('Per jam', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                  Text('Per jam (01:00 - 24:00)', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
                 ],
               ),
               const Icon(Icons.trending_up, color: Color(0xFF16A34A), size: 22),
@@ -76,30 +71,39 @@ class MiniAnalyticsWidget extends ConsumerWidget {
             height: 100,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: _hourlySales.map((data) {
-                final sales = data['sales'] as int;
+              children: hourlySales.map((data) {
+                final sales = data.totalSales;
                 final ratio = sales / maxSales;
+                
+                // Only show labels for every 3 hours to avoid crowding
+                final hourInt = int.tryParse(data.hour.split(':').first) ?? 0;
+                final showLabel = hourInt % 4 == 0;
+
                 return Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 1),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Flexible(
                           child: FractionallySizedBox(
-                            heightFactor: ratio,
+                            heightFactor: ratio.clamp(0.05, 1.0), // Min height so it's visible even with 0 sales
                             child: Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFF3B82F6),
-                                borderRadius: BorderRadius.circular(4),
+                                color: sales > 0 ? const Color(0xFF3B82F6) : const Color(0xFFF3F4F6),
+                                borderRadius: BorderRadius.circular(2),
                               )),
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${data['hour']}',
-                          style: const TextStyle(fontSize: 9, color: Color(0xFF6B7280)),
-                        ),
+                        if (showLabel) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            data.hour.split(':').first,
+                            style: const TextStyle(fontSize: 8, color: Color(0xFF6B7280)),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 14), // Spacer to maintain alignment
+                        ],
                       ],
                     ),
                   ),
@@ -125,8 +129,25 @@ class MiniAnalyticsWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildTopProductsCard() {
-    final maxSold = (_topProducts.first['sold'] as int);
+  Widget _buildTopProductsCard(ReportData reportData) {
+    final topProducts = reportData.topProducts;
+    
+    if (topProducts.isEmpty) {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        padding: const EdgeInsets.all(32),
+        child: const Center(
+          child: Text('Belum ada data penjualan hari ini', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+        ),
+      );
+    }
+
+    final maxSold = topProducts.first.totalSold;
 
     return Container(
       decoration: BoxDecoration(
@@ -155,9 +176,12 @@ class MiniAnalyticsWidget extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          ..._topProducts.map((product) {
-            final sold = product['sold'] as int;
-            final ratio = sold / maxSold;
+          ...topProducts.asMap().entries.map((entry) {
+            final index = entry.key;
+            final product = entry.value;
+            final sold = product.totalSold;
+            final ratio = maxSold > 0 ? (sold / maxSold) : 0.0;
+            
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
@@ -166,12 +190,12 @@ class MiniAnalyticsWidget extends ConsumerWidget {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: product['color'] as Color,
+                      color: _rankColors[index % _rankColors.length],
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
-                        '${product['rank']}',
+                        '${index + 1}',
                         style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF1F2937)),
                       ),
                     ),
@@ -182,7 +206,7 @@ class MiniAnalyticsWidget extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${product['name']}',
+                          product.name,
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF111827)),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -212,3 +236,4 @@ class MiniAnalyticsWidget extends ConsumerWidget {
     );
   }
 }
+

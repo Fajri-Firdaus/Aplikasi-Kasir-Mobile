@@ -133,7 +133,7 @@ class ReportLocalRepository {
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
           STRFTIME('%H:00', created_at) AS jam,
-          SUM(total_amount) AS total_omzet
+          COALESCE(SUM(total_amount), 0.0) AS total_omzet
       FROM transactions
       WHERE DATE(created_at) = DATE('now', 'localtime') AND status != 'void'
       GROUP BY jam
@@ -142,8 +142,8 @@ class ReportLocalRepository {
 
     return maps.map((row) {
       return HourlySales(
-        hour: row['jam'] as String,
-        totalSales: (row['total_omzet'] as num).toDouble(),
+        hour: (row['jam'] ?? '00:00') as String,
+        totalSales: (row['total_omzet'] as num? ?? 0.0).toDouble(),
       );
     }).toList();
   }
@@ -154,7 +154,7 @@ class ReportLocalRepository {
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
           p.name,
-          SUM(td.quantity) AS total_terjual
+          COALESCE(SUM(td.quantity), 0) AS total_terjual
       FROM transaction_details td
       JOIN products p ON td.product_id = p.id
       JOIN transactions t ON td.transaction_id = t.id
@@ -166,8 +166,8 @@ class ReportLocalRepository {
 
     return maps.map((row) {
       return TopProduct(
-        name: row['name'] as String,
-        totalSold: row['total_terjual'] as int,
+        name: (row['name'] ?? 'Unknown') as String,
+        totalSold: (row['total_terjual'] as int? ?? 0),
       );
     }).toList();
   }
