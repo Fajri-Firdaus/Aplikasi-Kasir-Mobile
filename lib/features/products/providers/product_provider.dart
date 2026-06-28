@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/product.dart';
 import '../data/product_local_repository.dart';
+import '../../reports/providers/reports_provider.dart';
 
 // NotifierProvider for full CRUD support (required by tests & UI)
 final productNotifierProvider = NotifierProvider<ProductNotifier, List<Product>>(ProductNotifier.new);
@@ -31,6 +32,7 @@ class ProductNotifier extends Notifier<List<Product>> {
     try {
       final newProduct = await _repository.create(product);
       state = [...state, newProduct];
+      ref.read(reportsProvider.notifier).refresh();
     } catch (e) {
       // Handle error
     }
@@ -43,6 +45,7 @@ class ProductNotifier extends Notifier<List<Product>> {
         for (final p in state)
           if (p.id == id) updated else p,
       ];
+      ref.read(reportsProvider.notifier).refresh();
     } catch (e) {
       // Handle error
     }
@@ -52,6 +55,7 @@ class ProductNotifier extends Notifier<List<Product>> {
     try {
       await _repository.delete(id);
       state = state.where((p) => p.id != id).toList();
+      ref.read(reportsProvider.notifier).refresh();
     } catch (e) {
       // Handle error
     }
@@ -65,5 +69,6 @@ class ProductNotifier extends Notifier<List<Product>> {
         else
           p,
     ];
+    ref.read(reportsProvider.notifier).refresh();
   }
 }

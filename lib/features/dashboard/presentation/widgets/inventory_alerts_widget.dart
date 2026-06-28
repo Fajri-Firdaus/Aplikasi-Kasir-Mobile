@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../reports/providers/reports_provider.dart';
 
-class InventoryAlertsWidget extends StatelessWidget {
+class InventoryAlertsWidget extends ConsumerWidget {
   const InventoryAlertsWidget({super.key});
 
-  static const _lowStockItems = [
-    {'id': '1', 'name': 'Teh Tarik Original', 'stock': 8, 'minStock': 10, 'category': 'Minuman'},
-    {'id': '2', 'name': 'Sirup Vanilla', 'stock': 5, 'minStock': 15, 'category': 'Bahan'},
-    {'id': '3', 'name': 'Gula Pasir', 'stock': 3, 'minStock': 10, 'category': 'Bahan'},
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportData = ref.watch(reportsProvider);
+    final lowStockItems = reportData.lowStockProducts;
+
     return Column(
       children: [
-        _buildLowStockCard(context),
+        _buildLowStockCard(context, lowStockItems),
         const SizedBox(height: 12),
         _buildShiftStatusCard(context),
       ],
     );
   }
 
-  Widget _buildLowStockCard(BuildContext context) {
+  Widget _buildLowStockCard(BuildContext context, List<dynamic> lowStockItems) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -52,7 +51,9 @@ class InventoryAlertsWidget extends StatelessWidget {
                   children: [
                     const Text('Peringatan Stok Menipis', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
                     Text(
-                      '${_lowStockItems.length} produk perlu diisi ulang',
+                      lowStockItems.isEmpty 
+                        ? 'Stok produk terpantau aman'
+                        : '${lowStockItems.length} produk perlu diisi ulang',
                       style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
                     ),
                   ],
@@ -60,67 +61,78 @@ class InventoryAlertsWidget extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ..._lowStockItems.map((item) {
-            final stock = item['stock'] as int;
-            final minStock = item['minStock'] as int;
-            final percentage = stock / minStock;
-            final isVeryLow = percentage < 0.5;
-            final borderColor = isVeryLow ? const Color(0xFFEF4444) : const Color(0xFFF97316);
-            final bgColor = isVeryLow ? const Color(0xFFFEF2F2) : const Color(0xFFFFF7ED);
-            final badgeBg = isVeryLow ? const Color(0xFFFEE2E2) : const Color(0xFFFFEDD5);
-            final badgeText = isVeryLow ? const Color(0xFFB91C1C) : const Color(0xFFC2410C);
-            final progressColor = isVeryLow ? const Color(0xFFEF4444) : const Color(0xFFF97316);
+          if (lowStockItems.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...lowStockItems.map((item) {
+              final stock = item.stock as int;
+              const minStock = 10; // Default min stock alert threshold
+              final percentage = stock / minStock;
+              final isVeryLow = stock <= 3;
+              final borderColor = isVeryLow ? const Color(0xFFEF4444) : const Color(0xFFF97316);
+              final bgColor = isVeryLow ? const Color(0xFFFEF2F2) : const Color(0xFFFFF7ED);
+              final badgeBg = isVeryLow ? const Color(0xFFFEE2E2) : const Color(0xFFFFEDD5);
+              final badgeText = isVeryLow ? const Color(0xFFB91C1C) : const Color(0xFFC2410C);
+              final progressColor = isVeryLow ? const Color(0xFFEF4444) : const Color(0xFFF97316);
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border(left: BorderSide(color: borderColor, width: 4)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${item['name']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1F2937))),
-                              Text('${item['category']}', style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
-                            ],
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border(left: BorderSide(color: borderColor, width: 4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1F2937))),
+                                Text(item.category, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                              ],
+                            ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(6)),
-                          child: Text(
-                            '$stock / $minStock',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: badgeText),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(6)),
+                            child: Text(
+                              '$stock / $minStock',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: badgeText),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: percentage.clamp(0.0, 1.0),
-                        minHeight: 6,
-                        backgroundColor: const Color(0xFFE5E7EB),
-                        valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: percentage.clamp(0.0, 1.0),
+                          minHeight: 6,
+                          backgroundColor: const Color(0xFFE5E7EB),
+                          valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              );
+            }),
+          ] else ...[
+            const SizedBox(height: 20),
+            const Center(
+              child: Text(
+                'Semua stok di atas ambang batas aman.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), fontStyle: FontStyle.italic),
               ),
-            );
-          }),
+            ),
+            const SizedBox(height: 12),
+          ],
           const SizedBox(height: 4),
           SizedBox(
             width: double.infinity,

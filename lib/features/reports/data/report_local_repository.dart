@@ -34,6 +34,18 @@ class TopProduct {
   TopProduct({required this.name, required this.totalSold});
 }
 
+class LowStockItem {
+  final String name;
+  final int stock;
+  final String category;
+
+  LowStockItem({
+    required this.name,
+    required this.stock,
+    required this.category,
+  });
+}
+
 class CashierPerformance {
   final String username;
   final int totalTransactions;
@@ -55,7 +67,6 @@ class ReportLocalRepository {
   Future<FinancialSummary> getTodaySummary() async {
     final db = await _dbService.database;
     
-    // Count transactions first
     final countMaps = await db.rawQuery('''
       SELECT COUNT(id) AS count
       FROM transactions
@@ -63,7 +74,6 @@ class ReportLocalRepository {
     ''');
     final totalTxns = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
 
-    // Get revenue and profit
     final maps = await db.rawQuery('''
       SELECT 
           COALESCE(SUM(t.total_amount), 0.0) AS penjualan_hari_ini,
@@ -89,7 +99,6 @@ class ReportLocalRepository {
     );
   }
 
-  // Financial summary over custom date range
   Future<FinancialSummary> getFinancialSummary(DateTime start, DateTime end) async {
     final db = await _dbService.database;
     final startStr = '${start.toIso8601String().split('T').first} 00:00:00';
@@ -127,7 +136,6 @@ class ReportLocalRepository {
     );
   }
 
-  // Hourly Sales Trend for Today
   Future<List<HourlySales>> getTodayHourlySales() async {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
@@ -148,7 +156,6 @@ class ReportLocalRepository {
     }).toList();
   }
 
-  // Top 5 Selling Products today
   Future<List<TopProduct>> getTodayTopProducts() async {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
@@ -172,19 +179,26 @@ class ReportLocalRepository {
     }).toList();
   }
 
-  // Low Stock warnings
-  Future<List<Map<String, dynamic>>> getLowStockProducts() async {
+  Future<List<LowStockItem>> getLowStockProducts() async {
     final db = await _dbService.database;
-    return await db.rawQuery('''
-      SELECT name, stock 
-      FROM products 
-      WHERE is_active = 1
-      ORDER BY stock ASC 
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT p.name, p.stock, COALESCE(c.name, 'Tanpa Kategori') as category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.is_active = 1 AND p.stock <= 10
+      ORDER BY p.stock ASC 
       LIMIT 3
     ''');
+
+    return maps.map((row) {
+      return LowStockItem(
+        name: (row['name'] ?? 'Unknown') as String,
+        stock: (row['stock'] as int? ?? 0),
+        category: (row['category_name'] ?? 'Umum') as String,
+      );
+    }).toList();
   }
 
-  // Cashier performance report
   Future<List<CashierPerformance>> getCashierPerformance() async {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
@@ -202,9 +216,9 @@ class ReportLocalRepository {
 
     return maps.map((row) {
       return CashierPerformance(
-        username: row['username'] as String,
-        totalTransactions: row['total_transaksi_ditangani'] as int,
-        totalSales: (row['total_nominal_penjualan'] as num).toDouble(),
+        username: (row['username'] ?? 'User') as String,
+        totalTransactions: (row['total_transaksi_ditangani'] as int? ?? 0),
+        totalSales: (row['total_nominal_penjualan'] as num? ?? 0.0).toDouble(),
       );
     }).toList();
   }

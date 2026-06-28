@@ -9,6 +9,7 @@ class ReportData {
   final DateTime endDate;
   final List<HourlySales> hourlySales;
   final List<TopProduct> topProducts;
+  final List<LowStockItem> lowStockProducts;
 
   const ReportData({
     required this.totalRevenue,
@@ -16,8 +17,9 @@ class ReportData {
     required this.totalExpense,
     required this.startDate,
     required this.endDate,
-    this.hourlySales = const [],
-    this.topProducts = const [],
+    required this.hourlySales,
+    required this.topProducts,
+    required this.lowStockProducts,
   });
 
   double get netProfit => totalRevenue - totalExpense;
@@ -33,33 +35,44 @@ class ReportsNotifier extends Notifier<ReportData> {
     _repository = ref.watch(reportRepositoryProvider);
     // Initial fetch for today
     Future.microtask(() => loadReportData(DateTime.now(), DateTime.now()));
+    
     return ReportData(
-      totalRevenue: 0,
+      totalRevenue: 0.0,
       totalTransactions: 0,
-      totalExpense: 0,
+      totalExpense: 0.0,
       startDate: DateTime.now(),
       endDate: DateTime.now(),
       hourlySales: const [],
       topProducts: const [],
+      lowStockProducts: const [],
     );
   }
 
   Future<void> loadReportData(DateTime start, DateTime end) async {
     try {
       final summary = await _repository.getFinancialSummary(start, end);
-      
-      // Fetch hourly sales and top products for today specifically
-      final hourly = await _repository.getTodayHourlySales();
-      final top = await _repository.getTodayTopProducts();
 
-      // Ensure all 24 hours are represented
-      final fullHourly = List.generate(24, (index) {
-        final hourStr = '${(index + 1).toString().padLeft(2, '0')}:00';
+      // Fetch hourly sales, top products, and low stock for today specifically
+      final List<HourlySales> hourly = await _repository.getTodayHourlySales();
+      final List<TopProduct> top = await _repository.getTodayTopProducts();
+      final List<LowStockItem> lowStock = await _repository.getLowStockProducts();
+
+      // Ensure all 24 hours are represented, mapping DB's 00:00 to 24:00 if needed
+      final List<HourlySales> fullHourly = List.generate(24, (index) {
+        // We want display hours 01:00 to 24:00
+        final displayHour = index + 1;
+        final hourStr = '${displayHour.toString().padLeft(2, '0')}:00';
+        
+        // SQLite STRFTIME %H returns 00-23. Map 24:00 back to 00:00 for lookup.
+        final lookupHour = displayHour == 24 ? '00:00' : hourStr;
+        
         final existing = hourly.firstWhere(
-          (h) => h.hour == hourStr,
+          (h) => h.hour == lookupHour,
           orElse: () => HourlySales(hour: hourStr, totalSales: 0.0),
         );
-        return existing;
+        
+        // Return with the display hour string
+        return HourlySales(hour: hourStr, totalSales: existing.totalSales);
       });
 
       state = ReportData(
@@ -70,9 +83,10 @@ class ReportsNotifier extends Notifier<ReportData> {
         endDate: end,
         hourlySales: fullHourly,
         topProducts: top,
+        lowStockProducts: lowStock,
       );
     } catch (e) {
-      // Handle error
+      // Handle error safely if needed
     }
   }
 
