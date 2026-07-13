@@ -29,3 +29,10 @@ Perbaikan :
 - Perubahan dilakukan pada file android/gradle.properties
 ==========
 
+Datetime : 2026-07-13 19:39:38
+Masalah : Pada menu transaksi saat melakukan transaksi (melanjutkan pembayaran), saat memasukan nominal secara manual, dan keyboard android muncul terjadi erorr:"bottom overflowed by 29 pixels" karena muncul elemen/widget kembalian
+Perbaikan:
+- Membungkus column pada class _PaymentSheetState dengan widget SingleChildScrollView
+- Perubahan di file lib/features/transactions/presentation/transaction_page.dart
+==========
+
