@@ -22,3 +22,10 @@ Perbaikan :
 - Menghapus bagian change di class _StateRow (widget untuk setiap stat)
 ==========
 
+Datetime : 2026-07-13 19:17:24
+Masalah : Tidak dapat melakukan hot reload dan hot restart saat melakukan flutter run
+Perbaikan :
+- Mengurangi konfigurasi kebutuhan JVM agar proses tidak dihentikan paksa karna out of memory
+- Perubahan dilakukan pada file android/gradle.properties
+==========
+
