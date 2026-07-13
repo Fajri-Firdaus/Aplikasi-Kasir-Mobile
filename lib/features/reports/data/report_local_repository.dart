@@ -70,7 +70,7 @@ class ReportLocalRepository {
     final countMaps = await db.rawQuery('''
       SELECT COUNT(id) AS count
       FROM transactions
-      WHERE DATE(created_at) = DATE('now', 'localtime') AND status != 'void'
+      WHERE DATE(created_at, 'localtime') = DATE('now', 'localtime') AND status != 'void'
     ''');
     final totalTxns = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
 
@@ -80,7 +80,7 @@ class ReportLocalRepository {
           COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS hpp_hari_ini
       FROM transactions t
       LEFT JOIN transaction_details td ON t.id = td.transaction_id
-      WHERE DATE(t.created_at) = DATE('now', 'localtime') AND t.status != 'void'
+      WHERE DATE(t.created_at, 'localtime') = DATE('now', 'localtime') AND t.status != 'void'
     ''');
 
     double revenue = 0.0;
@@ -107,7 +107,7 @@ class ReportLocalRepository {
     final countMaps = await db.rawQuery('''
       SELECT COUNT(id) AS count
       FROM transactions
-      WHERE created_at BETWEEN ? AND ? AND status != 'void'
+      WHERE DATETIME(created_at, 'localtime') BETWEEN ? AND ? AND status != 'void'
     ''', [startStr, endStr]);
     final totalTxns = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
 
@@ -117,7 +117,7 @@ class ReportLocalRepository {
           COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS total_hpp
       FROM transactions t
       LEFT JOIN transaction_details td ON t.id = td.transaction_id
-      WHERE t.created_at BETWEEN ? AND ? AND t.status != 'void'
+      WHERE DATETIME(t.created_at, 'localtime') BETWEEN ? AND ? AND t.status != 'void'
     ''', [startStr, endStr]);
 
     double revenue = 0.0;
@@ -140,10 +140,10 @@ class ReportLocalRepository {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
-          STRFTIME('%H:00', created_at) AS jam,
+          STRFTIME('%H:00', created_at, 'localtime') AS jam,
           COALESCE(SUM(total_amount), 0.0) AS total_omzet
       FROM transactions
-      WHERE DATE(created_at) = DATE('now', 'localtime') AND status != 'void'
+      WHERE DATE(created_at, 'localtime') = DATE('now', 'localtime') AND status != 'void'
       GROUP BY jam
       ORDER BY jam ASC
     ''');
@@ -165,7 +165,7 @@ class ReportLocalRepository {
       FROM transaction_details td
       JOIN products p ON td.product_id = p.id
       JOIN transactions t ON td.transaction_id = t.id
-      WHERE DATE(t.created_at) = DATE('now', 'localtime') AND t.status != 'void'
+      WHERE DATE(t.created_at, 'localtime') = DATE('now', 'localtime') AND t.status != 'void'
       GROUP BY p.id
       ORDER BY total_terjual DESC
       LIMIT 5

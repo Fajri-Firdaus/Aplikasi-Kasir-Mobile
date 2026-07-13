@@ -62,3 +62,8 @@ Perbaikan :
 Datetime : 2026-07-14 01:21:17
 Masalah : Pada menu home, widget ringkasan performa, tren penjualan hari ini, dan data penjualan hari ini, tidak menampilkan apapun setelah transaksi dilakukan. (melakukan pemeriksaan apakah data transaksi tidak tersimpan atau widget yang tidak mengambil data dari database)
 Perbaikan :
+- Masalah terletak pada perbedaan zona waktu yang dibuat otomatis oleh sql yang menggunakan UTC sedangkan query report_local_repository.dart tidak melakukan konversi sehingga terjadi selisih 7 jam
+- Melakukan perbaikan pada file lib/features/reports/data/report_local_repository.dart agar melakukan konversi waktu
+
+==========
+
