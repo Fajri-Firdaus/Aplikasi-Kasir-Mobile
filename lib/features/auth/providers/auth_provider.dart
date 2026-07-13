@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../users/data/app_user.dart';
 import '../../users/data/user_local_repository.dart';
+
 
 final authProvider = NotifierProvider<AuthNotifier, bool>(AuthNotifier.new);
 
@@ -41,5 +43,25 @@ class AuthNotifier extends Notifier<bool> {
     await prefs.remove('loggedInUserId');
     await prefs.remove('loggedInUserRole');
     state = false;
+  }
+
+  Future<void> signUp(String username, String password) async {
+    final existingUser = await _userRepository.getByUsername(username);
+    if (existingUser != null) {
+      throw Exception('Username sudah terdaftar.');
+    }
+
+    final newUser = AppUser(
+      id: '', // Will be assigned by database auto-increment
+      name: username.trim(),
+      username: username.trim(),
+      email: '${username.trim()}@example.com',
+      role: 'admin', // Default role for self registration
+      isActive: true,
+      createdAt: DateTime.now().toIso8601String(),
+      password: password,
+    );
+
+    await _userRepository.create(newUser);
   }
 }

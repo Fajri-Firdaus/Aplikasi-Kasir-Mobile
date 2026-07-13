@@ -166,6 +166,24 @@ class LocalDatabaseService {
       'store_phone': '08123456789',
       'receipt_footer': 'Terima kasih atas kunjungan Anda!',
     });
+
+    // Seed default categories
+    final categoryId = await db.insert('categories', {
+      'name': 'Makanan',
+    });
+
+    // Seed default products (e.g. ID 1, Nasi Goreng Spesial, stock 50)
+    await db.insert('products', {
+      'id': 1,
+      'sku': 'MK001',
+      'name': 'Nasi Goreng Spesial',
+      'category_id': categoryId,
+      'buy_price': 15000.0,
+      'sell_price': 25000.0,
+      'stock': 50,
+      'image_path': '',
+      'is_active': 1,
+    });
   }
 
   Future<void> close() async {

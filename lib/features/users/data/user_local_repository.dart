@@ -123,4 +123,16 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
     if (maps.isEmpty) return null;
     return _mapRowToUser(maps.first);
   }
+
+  Future<AppUser?> getByUsername(String username) async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'username = ?',
+      whereArgs: [username.trim()],
+    );
+
+    if (maps.isEmpty) return null;
+    return _mapRowToUser(maps.first);
+  }
 }

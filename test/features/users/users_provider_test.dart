@@ -49,7 +49,7 @@ void main() {
     final notifier = container.read(settingsProvider.notifier);
     
     // Wait for initial load
-    await notifier.loadSettings();
+    await Future.delayed(const Duration(milliseconds: 50));
 
     await notifier.updateStoreName('Toko Maju Jaya');
     final settings = container.read(settingsProvider);

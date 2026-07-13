@@ -60,7 +60,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _handleSignUp() async {
     setState(() { _error = ''; });
-    if (_signUpUsernameController.text.isEmpty ||
+    if (_signUpUsernameController.text.trim().isEmpty ||
         _signUpPasswordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
       setState(() => _error = 'Semua field harus diisi');
@@ -75,20 +75,33 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       return;
     }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
+    try {
+      await ref.read(authProvider.notifier).signUp(
+            _signUpUsernameController.text.trim(),
+            _signUpPasswordController.text,
+          );
+      if (mounted) {
+        setState(() {
+          _isSignUp = false;
+          _signUpUsernameController.clear();
+          _signUpPasswordController.clear();
+          _confirmPasswordController.clear();
+          _agreeTerms = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Akun berhasil dibuat! Silakan login.')),
+        );
+      }
+    } catch (e) {
       setState(() {
-        _isLoading = false;
-        _isSignUp = false;
-        _error = '';
-        _signUpUsernameController.clear();
-        _signUpPasswordController.clear();
-        _confirmPasswordController.clear();
-        _agreeTerms = false;
+        var errorMsg = e.toString();
+        if (errorMsg.startsWith('Exception: ')) {
+          errorMsg = errorMsg.substring(11);
+        }
+        _error = errorMsg;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Akun berhasil dibuat! Silakan login.')),
-      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
