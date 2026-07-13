@@ -6,3 +6,10 @@ Perbaikan :
 - rincian perbaikan ada pada artifact signup_fix_report.md
 ==========
 
+Datetime : 2026-07-13 16:44:33
+Masalah : Pada bagian profile header nama user, role, dan inisial masih bersifat statis
+Perbaikan :
+- Menambahkan  currentUserProvider  di berkas auth_provider.dart. Provider ini secara reaktif membaca ID pengguna yang sedang masuk dari  SharedPreferences , lalu mengambil data profil lengkap ( AppUser ) dari database lokal via repositori.
+- Mengubah kelas ProfileHeader di berkas profile_header.dart menjadi ConsumerWidget dan menggunakan ref.watch(currentUserProvider) untuk mengambil nama, role, dan inisial profil yang sesuai secara otomatis.
+==========
+

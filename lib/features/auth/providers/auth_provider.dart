@@ -65,3 +65,15 @@ class AuthNotifier extends Notifier<bool> {
     await _userRepository.create(newUser);
   }
 }
+
+final currentUserProvider = FutureProvider<AppUser?>((ref) async {
+  final isLoggedIn = ref.watch(authProvider);
+  if (!isLoggedIn) return null;
+
+  final prefs = await SharedPreferences.getInstance();
+  final userId = prefs.getString('loggedInUserId');
+  if (userId == null) return null;
+  
+  final repo = ref.watch(userRepositoryProvider);
+  return repo.getById(userId);
+});

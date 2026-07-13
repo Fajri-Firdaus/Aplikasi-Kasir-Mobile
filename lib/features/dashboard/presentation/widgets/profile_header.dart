@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_pos_flutter/features/auth/providers/auth_provider.dart';
 
-class ProfileHeader extends StatelessWidget {
+class ProfileHeader extends ConsumerWidget {
   final VoidCallback onNotificationTap;
   final int notificationCount;
 
@@ -19,13 +21,43 @@ class ProfileHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    // For now we show a static "Admin System" since the Notifier holds a bool (isLoggedIn)
-    // This will be extended when we move to a user model.
-    const userName = 'Admin System';
-    const userRole = 'admin';
-    final initials = _getInitials(userName);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(currentUserProvider);
 
+    return userAsync.when(
+      data: (user) {
+        final userName = user?.name ?? 'Admin System';
+        final userRole = user?.role ?? 'admin';
+        final initials = _getInitials(userName);
+
+        return _buildHeader(
+          context: context,
+          userName: userName,
+          userRole: userRole,
+          initials: initials,
+        );
+      },
+      loading: () => _buildHeader(
+        context: context,
+        userName: 'Loading...',
+        userRole: '...',
+        initials: '..',
+      ),
+      error: (err, stack) => _buildHeader(
+        context: context,
+        userName: 'Error',
+        userRole: '...',
+        initials: '!',
+      ),
+    );
+  }
+
+  Widget _buildHeader({
+    required BuildContext context,
+    required String userName,
+    required String userRole,
+    required String initials,
+  }) {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
