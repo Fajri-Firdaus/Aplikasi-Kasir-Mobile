@@ -4,7 +4,7 @@ Dokumen ini menjelaskan alur kerja aplikasi, keterhubungan antar file, dan tangg
 
 ---
 
-## BAGIAN 1: Ringkasan Workflow (The Big Picture)
+## BAGIAN 1: Ringkasan Workflow (The Big Picture) 
 
 Aplikasi ini bekerja dengan aliran data satu arah yang terorganisir sebagai berikut:
 

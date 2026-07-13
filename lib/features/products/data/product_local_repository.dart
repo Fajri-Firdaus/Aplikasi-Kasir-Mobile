@@ -33,6 +33,7 @@ class ProductLocalRepository implements RepositoryInterface<Product> {
       id: row['id'].toString(),
       name: row['name'] as String,
       price: (row['sell_price'] as num).toDouble(),
+      buyPrice: (row['buy_price'] as num?)?.toDouble() ?? 0.0,
       category: row['category_name']?.toString() ?? 'Lainnya',
       imageUrl: row['image_path']?.toString() ?? '',
       stock: row['stock'] as int,
@@ -80,7 +81,7 @@ class ProductLocalRepository implements RepositoryInterface<Product> {
       'sku': item.sku?.isEmpty == true ? null : item.sku,
       'name': item.name,
       'category_id': categoryId,
-      'buy_price': item.price * 0.6, // Seeding/mocking buy price as 60% of sell price
+      'buy_price': item.buyPrice,
       'sell_price': item.price,
       'stock': item.stock,
       'image_path': item.imageUrl,
@@ -104,7 +105,7 @@ class ProductLocalRepository implements RepositoryInterface<Product> {
         'sku': item.sku?.isEmpty == true ? null : item.sku,
         'name': item.name,
         'category_id': categoryId,
-        'buy_price': item.price * 0.6, // Keep mock relation
+        'buy_price': item.buyPrice,
         'sell_price': item.price,
         'stock': item.stock,
         'image_path': item.imageUrl,

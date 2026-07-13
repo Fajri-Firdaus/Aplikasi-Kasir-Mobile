@@ -33,6 +33,7 @@ void main() {
       id: '', // Will be assigned by database
       name: 'Nasi Liwet Special',
       price: 22000,
+      buyPrice: 15000,
       category: 'Makanan',
       imageUrl: '',
       stock: 15,
@@ -42,7 +43,9 @@ void main() {
     await notifier.addProduct(newProduct);
     
     final state = container.read(productNotifierProvider);
-    expect(state.any((p) => p.name == 'Nasi Liwet Special'), true);
+    final added = state.firstWhere((p) => p.name == 'Nasi Liwet Special');
+    expect(added.buyPrice, 15000);
+    expect(added.sku, 'NL001');
   });
 
   test('ProductNotifier deletes product', () async {
@@ -73,10 +76,11 @@ void main() {
       id: '1',
       name: 'Nasi Goreng Super Pedas',
       price: 27000,
+      buyPrice: 18000,
       category: 'Makanan',
       imageUrl: '',
       stock: 45,
-      sku: 'MK001',
+      sku: 'MK001-NEW',
     );
     
     await notifier.updateProduct('1', updatedProduct);
@@ -85,5 +89,7 @@ void main() {
     final product = state.firstWhere((p) => p.id == '1');
     expect(product.name, 'Nasi Goreng Super Pedas');
     expect(product.price, 27000);
+    expect(product.buyPrice, 18000);
+    expect(product.sku, 'MK001-NEW');
   });
 }

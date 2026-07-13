@@ -281,6 +281,10 @@ class _ProductListCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(product.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF111827)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (product.sku != null && product.sku!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text('SKU: ${product.sku}', style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                  ],
                   const SizedBox(height: 4),
                   Row(children: [
                     Container(
@@ -300,8 +304,15 @@ class _ProductListCard extends StatelessWidget {
                     ),
                   ]),
                   const SizedBox(height: 4),
-                  Text('Rp ${product.price.toStringAsFixed(0)}',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
+                  Row(
+                    children: [
+                      Text('Jual: Rp ${product.price.toStringAsFixed(0)}',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
+                      const SizedBox(width: 8),
+                      Text('Beli: Rp ${product.buyPrice.toStringAsFixed(0)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -331,9 +342,11 @@ class _ProductFormSheet extends StatefulWidget {
 class _ProductFormSheetState extends State<_ProductFormSheet> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _priceCtrl;
+  late final TextEditingController _buyPriceCtrl;
   late final TextEditingController _stockCtrl;
   late final TextEditingController _categoryCtrl;
   late final TextEditingController _imageCtrl;
+  late final TextEditingController _skuCtrl;
 
   @override
   void initState() {
@@ -341,21 +354,24 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     final p = widget.product;
     _nameCtrl = TextEditingController(text: p?.name ?? '');
     _priceCtrl = TextEditingController(text: p != null ? p.price.toStringAsFixed(0) : '');
+    _buyPriceCtrl = TextEditingController(text: p != null ? p.buyPrice.toStringAsFixed(0) : '');
     _stockCtrl = TextEditingController(text: p?.stock.toString() ?? '');
     _categoryCtrl = TextEditingController(text: p?.category ?? '');
     _imageCtrl = TextEditingController(text: p?.imageUrl ?? '');
+    _skuCtrl = TextEditingController(text: p?.sku ?? '');
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _priceCtrl.dispose(); _stockCtrl.dispose();
-    _categoryCtrl.dispose(); _imageCtrl.dispose();
+    _nameCtrl.dispose(); _priceCtrl.dispose(); _buyPriceCtrl.dispose();
+    _stockCtrl.dispose(); _categoryCtrl.dispose(); _imageCtrl.dispose();
+    _skuCtrl.dispose();
     super.dispose();
   }
 
   void _save() {
-    if (_nameCtrl.text.isEmpty || _priceCtrl.text.isEmpty || _stockCtrl.text.isEmpty || _categoryCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Semua field wajib diisi')));
+    if (_nameCtrl.text.isEmpty || _priceCtrl.text.isEmpty || _buyPriceCtrl.text.isEmpty || _stockCtrl.text.isEmpty || _categoryCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Semua field bertanda * wajib diisi')));
       return;
     }
     final p = widget.product;
@@ -363,9 +379,11 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
       id: p?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameCtrl.text.trim(),
       price: double.tryParse(_priceCtrl.text) ?? 0,
+      buyPrice: double.tryParse(_buyPriceCtrl.text) ?? 0,
       stock: int.tryParse(_stockCtrl.text) ?? 0,
       category: _categoryCtrl.text.trim(),
       imageUrl: _imageCtrl.text.trim().isEmpty ? 'https://picsum.photos/200' : _imageCtrl.text.trim(),
+      sku: _skuCtrl.text.trim().isEmpty ? null : _skuCtrl.text.trim(),
     ));
   }
 
@@ -387,6 +405,8 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
             const SizedBox(height: 16),
             _buildField('Nama Produk *', _nameCtrl, 'cth. Nasi Goreng Spesial'),
             _buildField('Kategori *', _categoryCtrl, 'cth. Makanan'),
+            _buildField('SKU (opsional)', _skuCtrl, 'cth. BRG001'),
+            _buildField('Harga Beli / Modal *', _buyPriceCtrl, 'cth. 15000', type: TextInputType.number),
             _buildField('Harga Jual *', _priceCtrl, 'cth. 25000', type: TextInputType.number),
             _buildField('Stok *', _stockCtrl, 'cth. 50', type: TextInputType.number),
             _buildField('URL Gambar (opsional)', _imageCtrl, 'https://...'),

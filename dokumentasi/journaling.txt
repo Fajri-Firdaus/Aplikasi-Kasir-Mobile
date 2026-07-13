@@ -4,6 +4,7 @@ Perbaikan :
 - menambahkan backend untuk melakuakan sign up yang sebelumnya belum ada
 - penambahan logic/state terdapat pada file lib/features/auth/providers/auth_provider.dart
 - rincian perbaikan ada pada artifact signup_fix_report.md
+
 ==========
 
 Datetime : 2026-07-13 16:44:33
@@ -11,6 +12,7 @@ Masalah : Pada bagian profile header nama user, role, dan inisial masih bersifat
 Perbaikan :
 - Menambahkan  currentUserProvider  di berkas auth_provider.dart. Provider ini secara reaktif membaca ID pengguna yang sedang masuk dari  SharedPreferences , lalu mengambil data profil lengkap ( AppUser ) dari database lokal via repositori.
 - Mengubah kelas ProfileHeader di berkas profile_header.dart menjadi ConsumerWidget dan menggunakan ref.watch(currentUserProvider) untuk mengambil nama, role, dan inisial profil yang sesuai secara otomatis.
+
 ==========
 
 Datetime : 2026-07-13 17:10:57
@@ -20,6 +22,7 @@ Perbaikan :
 - Menghapus change dari class _Stateitem
 - Menghapus change saat inisialisasi class _Statitem
 - Menghapus bagian change di class _StateRow (widget untuk setiap stat)
+
 ==========
 
 Datetime : 2026-07-13 19:17:24
@@ -27,6 +30,7 @@ Masalah : Tidak dapat melakukan hot reload dan hot restart saat melakukan flutte
 Perbaikan :
 - Mengurangi konfigurasi kebutuhan JVM agar proses tidak dihentikan paksa karna out of memory
 - Perubahan dilakukan pada file android/gradle.properties
+
 ==========
 
 Datetime : 2026-07-13 19:39:38
@@ -34,6 +38,7 @@ Masalah : Pada menu transaksi saat melakukan transaksi (melanjutkan pembayaran),
 Perbaikan:
 - Membungkus column pada class _PaymentSheetState dengan widget SingleChildScrollView
 - Perubahan di file lib/features/transactions/presentation/transaction_page.dart
+
 ==========
 
 Datetime : 2026-07-13 21:00:22
@@ -42,5 +47,18 @@ Perbaikan :
 - Mengubah tipe widget  _CartSheet  dari  StatelessWidget  menjadi ConsumerWidget (transaction_page.dart).
 - Memanfaatkan WidgetRef ref lokal yang disediakan langsung oleh method build(BuildContext context, WidgetRef ref) milik ConsumerWidget. Dengan begini, _CartSheet mendengarkan perubahan secara langsung pada context-nya sendiri dan me-rebuild UI secara otomatis ketika kuantitas item bertambah atau berkurang.
 - Menyederhanakan instansiasi _CartSheet pada method _showCartSheet dengan menghapus parameter constructor ref yang sudah tidak diperlukan lagi (transaction_page.dart).
+
 ==========
 
+Datetime : 2026-07-14 00:57:32
+Masalah : Pada bagian tambah dan edit produk di menu transaksi tidak terdapat form untuk memasukkan SKU dan harga beli/modal, ini bertentangan dengan tabel products di database
+Perbaikan :
+- Menambahkan properti buyPrice (default  0.0 ) ke dalam model produk di product.dart agar selaras dengan kolom buy_price di database SQLite.
+- Menjalankan generator build_runner untuk memperbarui model serialisasi data (product.freezed.dart dan product.g.dart).
+- Memperbarui product_local_repository.dart, dengan mengubah mapping data agar membaca kolom buyPrice, dan memperbaiki proses kalkulasi
+
+==========
+
+Datetime : 2026-07-14 01:21:17
+Masalah : Pada menu home, widget ringkasan performa, tren penjualan hari ini, dan data penjualan hari ini, tidak menampilkan apapun setelah transaksi dilakukan. (melakukan pemeriksaan apakah data transaksi tidak tersimpan atau widget yang tidak mengambil data dari database)
+Perbaikan :
