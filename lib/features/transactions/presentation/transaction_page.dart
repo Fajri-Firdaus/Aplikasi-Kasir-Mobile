@@ -222,7 +222,7 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _CartSheet(ref: ref, formatCurrency: _formatCurrency, onCheckout: (total) {
+      builder: (_) => _CartSheet(formatCurrency: _formatCurrency, onCheckout: (total) {
         Navigator.pop(context);
         _showPaymentDialog(context, ref, total);
       }),
@@ -364,14 +364,13 @@ class _ProductCard extends StatelessWidget {
 }
 
 // --- Cart Bottom Sheet ---
-class _CartSheet extends StatelessWidget {
-  final WidgetRef ref;
+class _CartSheet extends ConsumerWidget {
   final String Function(int) formatCurrency;
   final void Function(double) onCheckout;
-  const _CartSheet({required this.ref, required this.formatCurrency, required this.onCheckout});
+  const _CartSheet({required this.formatCurrency, required this.onCheckout});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cartItems = ref.watch(cartProvider);
     final notifier = ref.read(cartProvider.notifier);
     return DraggableScrollableSheet(

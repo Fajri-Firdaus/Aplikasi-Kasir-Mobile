@@ -36,3 +36,11 @@ Perbaikan:
 - Perubahan di file lib/features/transactions/presentation/transaction_page.dart
 ==========
 
+Datetime : 2026-07-13 21:00:22
+Masalah : Pada menu transaksi saat melihat daftar keranjang, tidak dapat melakukan penambahan/pengurangan jumlah item, terdapat tombolnya tetapi tidak berfungsi
+Perbaikan :
+- Mengubah tipe widget  _CartSheet  dari  StatelessWidget  menjadi ConsumerWidget (transaction_page.dart).
+- Memanfaatkan WidgetRef ref lokal yang disediakan langsung oleh method build(BuildContext context, WidgetRef ref) milik ConsumerWidget. Dengan begini, _CartSheet mendengarkan perubahan secara langsung pada context-nya sendiri dan me-rebuild UI secara otomatis ketika kuantitas item bertambah atau berkurang.
+- Menyederhanakan instansiasi _CartSheet pada method _showCartSheet dengan menghapus parameter constructor ref yang sudah tidak diperlukan lagi (transaction_page.dart).
+==========
+
