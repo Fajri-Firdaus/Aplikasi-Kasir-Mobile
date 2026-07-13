@@ -13,7 +13,6 @@ class PerformanceSummary extends ConsumerWidget {
       _StatItem(
         label: 'Penjualan Hari Ini',
         value: 'Rp ${_formatCurrency(reportData.totalRevenue.toInt())}',
-        change: '+12%',
         icon: Icons.attach_money,
         iconColor: const Color(0xFF16A34A),
         iconBgColor: const Color(0xFFDCFCE7),
@@ -21,7 +20,6 @@ class PerformanceSummary extends ConsumerWidget {
       _StatItem(
         label: 'Total Transaksi',
         value: '${reportData.totalTransactions}',
-        change: '+8%',
         icon: Icons.shopping_bag_outlined,
         iconColor: const Color(0xFF2563EB),
         iconBgColor: const Color(0xFFDBEAFE),
@@ -29,7 +27,6 @@ class PerformanceSummary extends ConsumerWidget {
       _StatItem(
         label: 'Laba Bersih',
         value: 'Rp ${_formatCurrency(reportData.netProfit.toInt())}',
-        change: '+5%',
         icon: Icons.account_balance_wallet_outlined,
         iconColor: const Color(0xFF7C3AED),
         iconBgColor: const Color(0xFFEDE9FE),
@@ -59,7 +56,6 @@ class PerformanceSummary extends ConsumerWidget {
                 'Ringkasan Performa',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
               ),
-              Icon(Icons.trending_up, color: Colors.green[600], size: 22),
             ],
           ),
           const SizedBox(height: 12),
@@ -80,7 +76,6 @@ class PerformanceSummary extends ConsumerWidget {
 class _StatItem {
   final String label;
   final String value;
-  final String change;
   final IconData icon;
   final Color iconColor;
   final Color iconBgColor;
@@ -88,7 +83,6 @@ class _StatItem {
   const _StatItem({
     required this.label,
     required this.value,
-    required this.change,
     required this.icon,
     required this.iconColor,
     required this.iconBgColor,
@@ -127,17 +121,6 @@ class _StatRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(stat.value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              stat.change,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
             ),
           ),
         ],

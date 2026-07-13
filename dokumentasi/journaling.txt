@@ -13,3 +13,12 @@ Perbaikan :
 - Mengubah kelas ProfileHeader di berkas profile_header.dart menjadi ConsumerWidget dan menggunakan ref.watch(currentUserProvider) untuk mengambil nama, role, dan inisial profil yang sesuai secara otomatis.
 ==========
 
+Datetime : 2026-07-13 17:10:57
+Masalah : Pada menu dashboard/home di widget ringkasan performa, terdapat icon dan persentase peningkatan/penurunan statis
+Perbaikan :
+- Menghapus dua elemen tersebut di file lib/features/dashboard/presentation/widgets/performance_summary.dart
+- Menghapus change dari class _Stateitem
+- Menghapus change saat inisialisasi class _Statitem
+- Menghapus bagian change di class _StateRow (widget untuk setiap stat)
+==========
+
