@@ -79,3 +79,9 @@ Perbaikan :
 Datetime : 2026-07-16 20:27:42
 Masalah : Saat menambahkan produk baru form kategori mengharuskan user untuk mengetik kategori, buat bagian ini memiliki dropdown agar user bisa memilih kategori yang sudah ada dan menghindari kategori yang duplikat.
 Perbaikan :
+- Mengubah kelas widget form _ProductFormSheet agar memiliki akses penuh ke provider Riverpod (ref)
+- Memanggil repo.getCategories() untuk mendapatkan seluruh kategori yang sudah terdaftar di database
+- Membuat dropdown
+
+==========
+

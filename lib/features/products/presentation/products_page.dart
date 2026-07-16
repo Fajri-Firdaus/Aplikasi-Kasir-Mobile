@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../products/providers/product_provider.dart';
 import '../../products/data/product.dart';
+import '../../products/data/product_local_repository.dart';
 import '../../../core/theme/app_colors.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
@@ -336,15 +337,15 @@ class _ProductListCard extends StatelessWidget {
 }
 
 // --- Product Form Bottom Sheet ---
-class _ProductFormSheet extends StatefulWidget {
+class _ProductFormSheet extends ConsumerStatefulWidget {
   final Product? product;
   final void Function(Product) onSave;
   const _ProductFormSheet({required this.product, required this.onSave});
   @override
-  State<_ProductFormSheet> createState() => _ProductFormSheetState();
+  ConsumerState<_ProductFormSheet> createState() => _ProductFormSheetState();
 }
 
-class _ProductFormSheetState extends State<_ProductFormSheet> {
+class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _priceCtrl;
   late final TextEditingController _buyPriceCtrl;
@@ -352,6 +353,11 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
   late final TextEditingController _categoryCtrl;
   late final TextEditingController _imageCtrl;
   late final TextEditingController _skuCtrl;
+
+  List<String> _categories = [];
+  String? _selectedCategory;
+  bool _isCustomCategory = false;
+  final String _newCategoryOption = '+ Tambah Kategori Baru...';
 
   @override
   void initState() {
@@ -364,6 +370,43 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     _categoryCtrl = TextEditingController(text: p?.category ?? '');
     _imageCtrl = TextEditingController(text: p?.imageUrl ?? '');
     _skuCtrl = TextEditingController(text: p?.sku ?? '');
+
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final repo = ref.read(productRepositoryProvider);
+      final list = await repo.getCategories();
+      if (mounted) {
+        setState(() {
+          _categories = list;
+          final prod = widget.product;
+          if (prod != null) {
+            if (_categories.contains(prod.category)) {
+              _selectedCategory = prod.category;
+            } else {
+              _categories.add(prod.category);
+              _selectedCategory = prod.category;
+            }
+            _categoryCtrl.text = prod.category;
+          } else {
+            if (_categories.isNotEmpty) {
+              _selectedCategory = _categories.first;
+              _categoryCtrl.text = _selectedCategory!;
+            } else {
+              _isCustomCategory = true;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCustomCategory = true;
+        });
+      }
+    }
   }
 
   @override
@@ -409,7 +452,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
             ]),
             const SizedBox(height: 16),
             _buildField('Nama Produk *', _nameCtrl, 'cth. Nasi Goreng Spesial'),
-            _buildField('Kategori *', _categoryCtrl, 'cth. Makanan'),
+            _buildCategoryField(),
             _buildField('SKU (opsional)', _skuCtrl, 'cth. BRG001'),
             _buildField('Harga Beli / Modal *', _buyPriceCtrl, 'cth. 15000', type: TextInputType.number),
             _buildField('Harga Jual *', _priceCtrl, 'cth. 25000', type: TextInputType.number),
@@ -428,6 +471,93 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
             )),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryField() {
+    if (_isCustomCategory || _categories.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Kategori Baru *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF374151))),
+                if (_categories.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isCustomCategory = false;
+                        _selectedCategory = _categories.first;
+                        _categoryCtrl.text = _selectedCategory!;
+                      });
+                    },
+                    child: const Text('Pilih dari daftar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _categoryCtrl,
+              decoration: InputDecoration(
+                hintText: 'cth. Minuman',
+                hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+                filled: true, fillColor: const Color(0xFFF9FAFB),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Kategori *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF374151))),
+          const SizedBox(height: 6),
+          DropdownButtonFormField<String>(
+            value: _selectedCategory,
+            items: [
+              ..._categories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+              DropdownMenuItem(
+                value: _newCategoryOption,
+                child: const Text(
+                  '+ Tambah Kategori Baru...',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                ),
+              ),
+            ],
+            onChanged: (val) {
+              if (val == _newCategoryOption) {
+                setState(() {
+                  _isCustomCategory = true;
+                  _categoryCtrl.clear();
+                });
+              } else if (val != null) {
+                setState(() {
+                  _selectedCategory = val;
+                  _categoryCtrl.text = val;
+                });
+              }
+            },
+            decoration: InputDecoration(
+              filled: true, fillColor: const Color(0xFFF9FAFB),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
