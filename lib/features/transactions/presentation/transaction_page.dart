@@ -298,15 +298,20 @@ class _ProductCard extends StatelessWidget {
                 Expanded(
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-                    child: Image.network(
-                      product.imageUrl,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: const Color(0xFFF3F4F6),
-                        child: const Center(child: Icon(Icons.fastfood_outlined, color: Color(0xFF9CA3AF), size: 40)),
-                      ),
-                    ),
+                    child: product.imageUrl.trim().isEmpty
+                        ? Container(
+                            color: const Color(0xFFF3F4F6),
+                            child: const Center(child: Icon(Icons.fastfood_outlined, color: Color(0xFF9CA3AF), size: 40)),
+                          )
+                        : Image.network(
+                            product.imageUrl,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFFF3F4F6),
+                              child: const Center(child: Icon(Icons.fastfood_outlined, color: Color(0xFF9CA3AF), size: 40)),
+                            ),
+                          ),
                   ),
                 ),
                 Padding(

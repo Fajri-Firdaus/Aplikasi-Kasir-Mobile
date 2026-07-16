@@ -67,3 +67,15 @@ Perbaikan :
 
 ==========
 
+
+Datetime : 2026-07-16 19:38:26
+Masalah : Pada saat menambahkan produk baru, produk secara default memiliki gambar, hilangkan default gambar tersebut
+Perbaikan :
+- Menghapus field imgUrl di file lib/features/products/presentation/products_page.dart
+- Menambahkan pemeriksaana product.imageUrul.trim().isEmpty agar tidak error jika produk tanpa gambar, dan mengembalikannya dengan icon (file product_page.dart)
+
+==========
+
+Datetime : 2026-07-16 20:27:42
+Masalah : Saat menambahkan produk baru form kategori mengharuskan user untuk mengetik kategori, buat bagian ini memiliki dropdown agar user bisa memilih kategori yang sudah ada dan menghindari kategori yang duplikat.
+Perbaikan :

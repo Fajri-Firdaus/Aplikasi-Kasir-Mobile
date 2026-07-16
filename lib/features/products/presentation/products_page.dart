@@ -264,14 +264,19 @@ class _ProductListCard extends StatelessWidget {
             borderRadius: const BorderRadius.horizontal(left: Radius.circular(13)),
             child: SizedBox(
               width: 80, height: 80,
-              child: Image.network(
-                product.imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: const Color(0xFFF3F4F6),
-                  child: const Center(child: Icon(Icons.fastfood_outlined, color: Color(0xFF9CA3AF), size: 32)),
-                ),
-              ),
+              child: product.imageUrl.trim().isEmpty
+                  ? Container(
+                      color: const Color(0xFFF3F4F6),
+                      child: const Center(child: Icon(Icons.fastfood_outlined, color: Color(0xFF9CA3AF), size: 32)),
+                    )
+                  : Image.network(
+                      product.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: const Color(0xFFF3F4F6),
+                        child: const Center(child: Icon(Icons.fastfood_outlined, color: Color(0xFF9CA3AF), size: 32)),
+                      ),
+                    ),
             ),
           ),
           Expanded(
@@ -382,7 +387,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
       buyPrice: double.tryParse(_buyPriceCtrl.text) ?? 0,
       stock: int.tryParse(_stockCtrl.text) ?? 0,
       category: _categoryCtrl.text.trim(),
-      imageUrl: _imageCtrl.text.trim().isEmpty ? 'https://picsum.photos/200' : _imageCtrl.text.trim(),
+      imageUrl: _imageCtrl.text.trim(),
       sku: _skuCtrl.text.trim().isEmpty ? null : _skuCtrl.text.trim(),
     ));
   }
