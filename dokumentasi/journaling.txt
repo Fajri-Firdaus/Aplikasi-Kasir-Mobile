@@ -85,3 +85,15 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-16 20:44:15
+Masalah : Pada menu transaksi dan produk harga ditampilkan tanpa tanda titik sebagai pemisah
+Perbaikan :
+- menambahkan fungsi pembantu global _formatCurrency untuk mendukung pemformatan angka dengan regex pemisah ribuan.
+- Memformat harga jual (product.price) dan harga beli (product.buyPrice) menggunakan fungsi pemformat mata uang rupiah _formatCurrency
+- Perbaikan diatas di dalam file lib/features/products/presentation/products_page.dart
+- Mengubah fungsi _formatCurrency dari private methode di dalam _TransactionPageState menjadi global helper function agar dapat diakses oleh widget lain.
+- Menerapkan pemformatan mata uang pada kartu produk (_ProductCard) menggunakan _formatCurrency(product.price.toInt()).
+- Menerapkan pemformatan mata uang pada baris harga satuan produk di dalam keranjang belanja (_CartSheet) menggunakan formatCurrency(item.product.price.toInt()).
+
+==========
+

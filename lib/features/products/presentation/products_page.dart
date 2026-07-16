@@ -312,10 +312,10 @@ class _ProductListCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Text('Jual: Rp ${product.price.toStringAsFixed(0)}',
+                      Text('Jual: Rp ${_formatCurrency(product.price)}',
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
                       const SizedBox(width: 8),
-                      Text('Beli: Rp ${product.buyPrice.toStringAsFixed(0)}',
+                      Text('Beli: Rp ${_formatCurrency(product.buyPrice)}',
                           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
                     ],
                   ),
@@ -587,4 +587,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       ),
     );
   }
+}
+
+String _formatCurrency(double val) {
+  return val.toInt().toString().replaceAllMapped(
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
 }

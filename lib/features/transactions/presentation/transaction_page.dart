@@ -193,9 +193,7 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
     );
   }
 
-  String _formatCurrency(int val) {
-    return val.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
-  }
+
 
   void _showClearCartDialog(BuildContext context, CartNotifier notifier) {
     showDialog(
@@ -325,7 +323,7 @@ class _ProductCard extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Rp ${product.price.toStringAsFixed(0)}',
+                          Text('Rp ${_formatCurrency(product.price.toInt())}',
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -422,7 +420,7 @@ class _CartSheet extends ConsumerWidget {
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                                Text('Rp ${item.product.price.toStringAsFixed(0)}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                                Text('Rp ${formatCurrency(item.product.price.toInt())}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
                               ]),
                             ),
                             Row(children: [
@@ -600,4 +598,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       ),
     );
   }
+}
+
+String _formatCurrency(int val) {
+  return val.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
 }
