@@ -97,3 +97,13 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-16 20:56:50
+Masalah : Memperbaiki menu laporan tab Keuangan untuk terhubung dengan database agar bisa berfungsi normal
+Perbaikan:
+- Menambahkan metode initState pada _ReportsPageState yang memicu pemanggilan refresh pada reportsProvider. Ini memastikan bahwa setiap kali kasir membuka halaman laporan, data keuangan (pendapatan, pengeluaran/HPP, laba bersih, dan jumlah transaksi) akan dimuat ulang secara langsung dari database transaksi terupdate.
+- Menghubungkan Grafik Tren Pendapatan ke Database
+- mengubah fungsi _buildRevenueChart agar membaca data jam-per-jam dari reportData.hourlySales yang dihasilkan oleh query SQLite.
+Menerapkan logika pengali dinamis (divisor) bersumber dari penjualan tertinggi per jam guna mengukur tinggi bar grafis secara proporsional secara visual dan mencegah error pembagian nol (division by zero).
+
+==========
+

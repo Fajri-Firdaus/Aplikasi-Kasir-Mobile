@@ -14,6 +14,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   bool _showDateFilter = false;
   bool _showExportMenu = false;
 
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(reportsProvider.notifier).refresh();
+    });
+  }
+
   void _updateDateFilter(String opt) {
     final now = DateTime.now();
     DateTime start;
@@ -492,9 +500,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   }
 
   Widget _buildRevenueChart(ReportData reportData) {
-    const data = [450000, 720000, 890000, 1200000, 1850000, 1650000, 980000, 1100000, 1420000];
-    const labels = ['08', '09', '10', '11', '12', '13', '14', '15', '16'];
-    final maxVal = data.reduce((a, b) => a > b ? a : b);
+    final chartData = reportData.hourlySales;
+    final maxVal = chartData.isEmpty 
+        ? 1.0 
+        : chartData.map((h) => h.totalSales).reduce((a, b) => a > b ? a : b);
+    final divisor = maxVal > 0 ? maxVal : 1.0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
@@ -502,19 +513,25 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         const Text('Tren Pendapatan Hari Ini', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
         const Text('Per jam', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
         const SizedBox(height: 16),
-        SizedBox(height: 80, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: List.generate(data.length, (i) {
+        SizedBox(height: 80, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: List.generate(chartData.length, (i) {
+          final h = chartData[i];
+          final hourLabel = h.hour.split(':').first;
+          final isLabelVisible = i % 4 == 3 || i == 0;
           return Expanded(child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 1.5),
             child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
               Flexible(child: FractionallySizedBox(
-                heightFactor: data[i] / maxVal,
+                heightFactor: h.totalSales / divisor,
                 child: Container(decoration: BoxDecoration(
                   color: const Color(0xFF3B82F6),
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(2),
                 )),
               )),
               const SizedBox(height: 4),
-              Text(labels[i], style: const TextStyle(fontSize: 9, color: Color(0xFF9CA3AF))),
+              Text(
+                isLabelVisible ? hourLabel : '',
+                style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
+              ),
             ]),
           ));
         }))),
