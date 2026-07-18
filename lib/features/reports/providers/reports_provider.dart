@@ -54,7 +54,7 @@ class ReportsNotifier extends Notifier<ReportData> {
 
       // Fetch hourly sales, top products, and low stock for today specifically
       final List<HourlySales> hourly = await _repository.getTodayHourlySales();
-      final List<TopProduct> top = await _repository.getTodayTopProducts();
+      final List<TopProduct> top = await _repository.getTopProducts(start, end);
       final List<LowStockItem> lowStock = await _repository.getLowStockProducts();
 
       // Ensure all 24 hours are represented, mapping DB's 00:00 to 24:00 if needed

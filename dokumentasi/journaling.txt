@@ -107,3 +107,19 @@ Menerapkan logika pengali dinamis (divisor) bersumber dari penjualan tertinggi p
 
 ==========
 
+Datetime : 2026-07-18 14:10:45
+Masalah : Menu laporan tab produk belum berfungsi dan terhubung ke databse
+Perbaikan :
+- Pada file lib/features/reports/data/report_local_repository.dart, menambahkan properti revenue pada model TopProduct untuk menyimpan total pendapatan per produk,getTodayTopProducts() menjadi getTopProducts(DateTime start, DateTime end).
+- Sinkronisasi provider pada file lib/features/reports/providers/reports_provider.dart, memperbarui ReportsNotifier agar meneruskan parameter filter tanggal start dan end ke dalam pemanggilan getTopProducts.
+- Integrasi dan pemformatan UI di file lib/features/reports/presentation/reports_page.dart
+
+==========
+
+Datetime : 2026:07:1784361460 14:57:40
+Masalah : Pada menu laporan tab produk, hasil yang ditampilkan hanya 5 teratas saja (buat laporan produk mencakup semua produk yang ada)
+Perbaikan :
+- Melakukan pembaruan pada query sqlite di dalam file lib/features/reports/data/report_local_repository.dart, pada metode getTopProducts
+
+==========
+

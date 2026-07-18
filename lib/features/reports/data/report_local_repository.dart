@@ -30,8 +30,9 @@ class HourlySales {
 class TopProduct {
   final String name;
   final int totalSold;
+  final double revenue;
 
-  TopProduct({required this.name, required this.totalSold});
+  TopProduct({required this.name, required this.totalSold, required this.revenue});
 }
 
 class LowStockItem {
@@ -156,25 +157,35 @@ class ReportLocalRepository {
     }).toList();
   }
 
-  Future<List<TopProduct>> getTodayTopProducts() async {
+  Future<List<TopProduct>> getTopProducts(DateTime start, DateTime end) async {
     final db = await _dbService.database;
+    final startStr = '${start.toIso8601String().split('T').first} 00:00:00';
+    final endStr = '${end.toIso8601String().split('T').first} 23:59:59';
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
           p.name,
-          COALESCE(SUM(td.quantity), 0) AS total_terjual
-      FROM transaction_details td
-      JOIN products p ON td.product_id = p.id
-      JOIN transactions t ON td.transaction_id = t.id
-      WHERE DATE(t.created_at, 'localtime') = DATE('now', 'localtime') AND t.status != 'void'
-      GROUP BY p.id
-      ORDER BY total_terjual DESC
-      LIMIT 5
-    ''');
+          COALESCE(sales.total_terjual, 0) AS total_terjual,
+          COALESCE(sales.total_revenue, 0.0) AS total_revenue
+      FROM products p
+      LEFT JOIN (
+          SELECT 
+              td.product_id,
+              SUM(td.quantity) AS total_terjual,
+              SUM(td.quantity * td.sell_price_at_sale) AS total_revenue
+          FROM transaction_details td
+          JOIN transactions t ON td.transaction_id = t.id
+          WHERE t.status != 'void' AND DATETIME(t.created_at, 'localtime') BETWEEN ? AND ?
+          GROUP BY td.product_id
+      ) sales ON p.id = sales.product_id
+      WHERE p.is_active = 1
+      ORDER BY total_terjual DESC, p.name ASC
+    ''', [startStr, endStr]);
 
     return maps.map((row) {
       return TopProduct(
         name: (row['name'] ?? 'Unknown') as String,
         totalSold: (row['total_terjual'] as int? ?? 0),
+        revenue: (row['total_revenue'] as num? ?? 0.0).toDouble(),
       );
     }).toList();
   }

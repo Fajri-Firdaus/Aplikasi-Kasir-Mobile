@@ -252,7 +252,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   Widget _buildTabContent(ReportData reportData) {
     switch (_activeTab) {
       case 0: return _buildFinancialTab(reportData);
-      case 1: return _buildProductTab();
+      case 1: return _buildProductTab(reportData);
       case 2: return _buildInventoryTab();
       case 3: return _buildStaffTab();
       case 4: return _buildCustomerTab();
@@ -281,14 +281,21 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     ]);
   }
 
-  Widget _buildProductTab() {
-    final top = [
-      {'rank': 1, 'name': 'Nasi Goreng Spesial', 'sold': 48, 'rev': 'Rp 1.680.000'},
-      {'rank': 2, 'name': 'Es Teh Manis', 'sold': 42, 'rev': 'Rp 210.000'},
-      {'rank': 3, 'name': 'Ayam Bakar', 'sold': 35, 'rev': 'Rp 1.225.000'},
-      {'rank': 4, 'name': 'Mie Goreng', 'sold': 28, 'rev': 'Rp 840.000'},
-      {'rank': 5, 'name': 'Kopi Susu', 'sold': 25, 'rev': 'Rp 450.000'},
-    ];
+  Widget _buildProductTab(ReportData reportData) {
+    final top = reportData.topProducts;
+    if (top.isEmpty) {
+      return Column(children: [
+        _sectionTitle('Performa Produk & Menu', Icons.inventory_2_outlined, const Color(0xFF16A34A)),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
+          child: const Center(
+            child: Text('Tidak ada data produk terjual pada periode ini', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+          ),
+        ),
+      ]);
+    }
     return Column(children: [
       _sectionTitle('Performa Produk & Menu', Icons.inventory_2_outlined, const Color(0xFF16A34A)),
       const SizedBox(height: 12),
@@ -299,18 +306,19 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             final i = e.key;
             final p = e.value;
             final colors = [const Color(0xFFFBBF24), const Color(0xFFD1D5DB), const Color(0xFFFB923C), const Color(0xFF93C5FD), const Color(0xFFC4B5FD)];
+            final color = colors[i % colors.length];
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(border: i < top.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF3F4F6))) : null),
               child: Row(children: [
-                Container(width: 32, height: 32, decoration: BoxDecoration(color: colors[i], shape: BoxShape.circle),
-                    child: Center(child: Text('${p['rank']}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)))),
+                Container(width: 32, height: 32, decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                    child: Center(child: Text('${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)))),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${p['name']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text('${p['sold']} terjual', style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                  Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text('${p.totalSold} terjual', style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
                 ])),
-                Text('${p['rev']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF2563EB))),
+                Text('Rp ${_formatCurrency(p.revenue.toInt())}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF2563EB))),
               ]),
             );
           }).toList(),
