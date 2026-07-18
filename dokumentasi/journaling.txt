@@ -130,3 +130,21 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026:07:18 15:19:22
+Masalah : Pergantian tab pada menu laporan harus di tekan judulnya, melakukan perbaikan agar bisa dislide
+Perbaikan :
+- Mengintegrasi PageView & PageController di dalam file reports_page.dart
+- Sinkronisasi tab klik dengan efek animasi
+- Pemisahan jalur scroll vertikal
+
+==========
+
+Datetime : 2026-07-18 15:26:06
+Masalah : Pada menu laporan, saat melakukan slide tab, judul tab yang saat ini berada tidak selalu muncul, sehingga harus di scroll manual
+Perbaikan :
+- Integrasi ScrollController pada tab bar
+- Logika perhitngan auto centering (_scrollToActiveTab)
+- Sinkronisasi aksi
+
+==========
+

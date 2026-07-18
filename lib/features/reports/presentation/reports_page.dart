@@ -15,13 +15,39 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   String _selectedDateLabel = 'Hari Ini';
   bool _showDateFilter = false;
   bool _showExportMenu = false;
+  late final PageController _pageController;
+  late final ScrollController _tabScrollController;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _activeTab);
+    _tabScrollController = ScrollController();
     Future.microtask(() {
       ref.read(reportsProvider.notifier).refresh();
     });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _tabScrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToActiveTab(int index) {
+    if (!_tabScrollController.hasClients) return;
+    const double tabWidth = 98.0;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double targetOffset = (index * tabWidth) - (screenWidth / 2) + (tabWidth / 2);
+    final double maxScroll = _tabScrollController.position.maxScrollExtent;
+    final double clampedOffset = targetOffset.clamp(0.0, maxScroll);
+
+    _tabScrollController.animateTo(
+      clampedOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   void _updateDateFilter(String opt) {
@@ -76,10 +102,43 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             children: [
               _buildHeader(reportData),
               _buildTabBar(),
-              Expanded(child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: _buildTabContent(reportData),
-              )),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _activeTab = index;
+                    });
+                    _scrollToActiveTab(index);
+                  },
+                  children: [
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildFinancialTab(reportData),
+                    ),
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildProductTab(reportData),
+                    ),
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildInventoryTab(ref.watch(productsProvider)),
+                    ),
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildStaffTab(),
+                    ),
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildCustomerTab(),
+                    ),
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildXZReportTab(reportData),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -190,6 +249,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           SizedBox(
             height: 44,
             child: ListView.builder(
+              controller: _tabScrollController,
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               itemCount: _tabs.length,
@@ -197,7 +257,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 final tab = _tabs[i];
                 final active = i == _activeTab;
                 return GestureDetector(
-                  onTap: () => setState(() => _activeTab = i),
+                  onTap: () {
+                    setState(() => _activeTab = i);
+                    _pageController.animateToPage(
+                      i,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                    _scrollToActiveTab(i);
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Column(
