@@ -3,13 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/users_provider.dart';
 import '../data/app_user.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class UsersPage extends ConsumerWidget {
   const UsersPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final users = ref.watch(usersProvider);
+    final usersState = ref.watch(usersProvider);
+    final currentUser = ref.watch(currentUserProvider).value;
+    final users = usersState.where((u) => u.id != currentUser?.id).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -72,7 +75,14 @@ class UsersPage extends ConsumerWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _UserFormSheet(user: user, onSave: (updated) {
         final notifier = ref.read(usersProvider.notifier);
-        if (user == null) { notifier.addUser(updated); } else { notifier.updateUser(user.id, updated); }
+        if (user == null) {
+          final currentUser = ref.read(currentUserProvider).value;
+          final updatedWithAdmin = updated.copyWith(adminId: currentUser?.id);
+          notifier.addUser(updatedWithAdmin);
+        } else {
+          final updatedWithAdmin = updated.copyWith(adminId: user.adminId);
+          notifier.updateUser(user.id, updatedWithAdmin);
+        }
         Navigator.pop(context);
       }),
     );
@@ -171,7 +181,11 @@ class _UserFormSheetState extends State<_UserFormSheet> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _usernameCtrl;
   late final TextEditingController _emailCtrl;
+  late final TextEditingController _passwordCtrl;
+  late final TextEditingController _confirmPasswordCtrl;
   late String _role;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void initState() {
@@ -180,23 +194,47 @@ class _UserFormSheetState extends State<_UserFormSheet> {
     _nameCtrl = TextEditingController(text: u?.name ?? '');
     _usernameCtrl = TextEditingController(text: u?.username ?? '');
     _emailCtrl = TextEditingController(text: u?.email ?? '');
+    _passwordCtrl = TextEditingController();
+    _confirmPasswordCtrl = TextEditingController();
     _role = u?.role ?? 'kasir';
   }
 
   @override
-  void dispose() { _nameCtrl.dispose(); _usernameCtrl.dispose(); _emailCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _nameCtrl.dispose();
+    _usernameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
+    super.dispose();
+  }
 
   void _save() {
     if (_nameCtrl.text.isEmpty || _usernameCtrl.text.isEmpty || _emailCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Semua field wajib diisi')));
       return;
     }
+    if (widget.user == null) {
+      if (_passwordCtrl.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password wajib diisi untuk kasir baru')));
+        return;
+      }
+      if (_confirmPasswordCtrl.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konfirmasi password wajib diisi')));
+        return;
+      }
+      if (_passwordCtrl.text != _confirmPasswordCtrl.text) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password tidak cocok')));
+        return;
+      }
+    }
     widget.onSave(AppUser(
-      id: widget.user?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: widget.user?.id ?? '',
       name: _nameCtrl.text.trim(),
       username: _usernameCtrl.text.trim(),
       email: _emailCtrl.text.trim(),
       role: _role,
+      password: widget.user == null ? _passwordCtrl.text : null,
       createdAt: widget.user?.createdAt ?? DateTime.now().toIso8601String().substring(0, 10),
     ));
   }
@@ -216,13 +254,32 @@ class _UserFormSheetState extends State<_UserFormSheet> {
           _buildField('Nama Lengkap *', _nameCtrl, 'cth. Budi Santoso'),
           _buildField('Username *', _usernameCtrl, 'cth. budi'),
           _buildField('Email *', _emailCtrl, 'budi@pos.com', type: TextInputType.emailAddress),
-          const SizedBox(height: 4),
+          if (widget.user == null) ...[
+            _buildField(
+              'Password *',
+              _passwordCtrl,
+              'Masukkan password kasir',
+              obscureText: _obscurePassword,
+              suffixIcon: IconButton(
+                icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: const Color(0xFF9CA3AF), size: 20),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+            _buildField(
+              'Konfirmasi Password *',
+              _confirmPasswordCtrl,
+              'Masukkan kembali password kasir',
+              obscureText: _obscureConfirmPassword,
+              suffixIcon: IconButton(
+                icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: const Color(0xFF9CA3AF), size: 20),
+                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+              ),
+            ),
+          ],
           const Text('Role *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF374151))),
           const SizedBox(height: 8),
           Row(children: [
             Expanded(child: _roleBtn('kasir', 'Kasir', const Color(0xFF2563EB))),
-            const SizedBox(width: 10),
-            Expanded(child: _roleBtn('admin', 'Admin', const Color(0xFF7C3AED))),
           ]),
           const SizedBox(height: 20),
           SizedBox(width: double.infinity, child: ElevatedButton(
@@ -251,14 +308,23 @@ class _UserFormSheetState extends State<_UserFormSheet> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController ctrl, String hint, {TextInputType? type}) {
+  Widget _buildField(
+    String label,
+    TextEditingController ctrl,
+    String hint, {
+    TextInputType? type,
+    bool obscureText = false,
+    Widget? suffixIcon,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF374151))),
         const SizedBox(height: 6),
         TextField(
-          controller: ctrl, keyboardType: type,
+          controller: ctrl,
+          keyboardType: type,
+          obscureText: obscureText,
           decoration: InputDecoration(
             hintText: hint, hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
             filled: true, fillColor: const Color(0xFFF9FAFB),
@@ -266,6 +332,7 @@ class _UserFormSheetState extends State<_UserFormSheet> {
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            suffixIcon: suffixIcon,
           ),
         ),
       ]),

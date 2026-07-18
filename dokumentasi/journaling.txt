@@ -165,3 +165,22 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-18 16:07:27
+Masalah : Menu pengaturan toko masih belum berfungsi dan tidak terhubung ke database
+Perbaikan :
+- Membuat halaman pengaturan toko baru store_settings_page.dart
+- Memperluas state provoder
+- Pendaftaran rute navigasi di file app_router.dart
+- Menghubungkan halaman utama
+
+==========
+
+Datetime : 2026-07-18 16:21:34
+Masalah : Menu manajemen user belum berfungsi sebagaimana mestinya, penambahan user harus memiliki default role kasir, user admin yang saat ini sedang digunakan tidak perlu muncul di manajemen user. Menu manajemen user berfokus pada pembuatan akun untuk karyawan
+Perbaikan :
+- Memperbarui form tambah user
+- Menghilangkan user admin yang aktif saat ini di menu manajemen user
+- Memastikan terhubung ke database
+
+==========
+

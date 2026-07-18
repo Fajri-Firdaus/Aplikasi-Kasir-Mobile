@@ -54,7 +54,7 @@ class SettingsPage extends ConsumerWidget {
                     iconBg: const Color(0xFFDCFCE7),
                     title: 'Pengaturan Toko',
                     subtitle: 'Nama toko, alamat, kontak',
-                    onTap: () {},
+                    onTap: () => context.go('/settings/store'),
                   ),
                   _SettingsItem(
                     icon: Icons.print_outlined,

@@ -11,6 +11,7 @@ import '../../features/products/presentation/products_page.dart';
 import '../../features/reports/presentation/reports_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/settings/presentation/profile_page.dart';
+import '../../features/settings/presentation/store_settings_page.dart';
 import '../../features/users/presentation/users_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -97,6 +98,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'profile',
                     builder: (context, state) => const ProfilePage(),
+                  ),
+                  GoRoute(
+                    path: 'store',
+                    builder: (context, state) => const StoreSettingsPage(),
                   ),
                 ]
               ),

@@ -25,6 +25,7 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
       role: row['role'] as String,
       isActive: true, // In simple mapping, or use a column if present
       createdAt: row['created_at']?.toString() ?? '',
+      adminId: row['admin_id']?.toString(),
     );
   }
 
@@ -65,6 +66,7 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
       'username': item.username,
       'password': hashedPassword,
       'role': item.role,
+      'admin_id': item.adminId != null ? int.tryParse(item.adminId!) : null,
     });
 
     return item.copyWith(id: id.toString());
@@ -81,6 +83,7 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
       'email': item.email,
       'username': item.username,
       'role': item.role,
+      'admin_id': item.adminId != null ? int.tryParse(item.adminId!) : null,
     };
 
     if (item.password != null && item.password!.isNotEmpty) {

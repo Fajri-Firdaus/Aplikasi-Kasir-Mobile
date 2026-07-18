@@ -44,4 +44,9 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = updated;
     await _repository.updateSettings(updated);
   }
+
+  Future<void> updateSettings(AppSettings settings) async {
+    state = settings;
+    await _repository.updateSettings(settings);
+  }
 }

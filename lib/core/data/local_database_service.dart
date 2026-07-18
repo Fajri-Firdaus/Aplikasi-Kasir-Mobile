@@ -27,6 +27,7 @@ class LocalDatabaseService {
         version: 1,
         onCreate: _onCreate,
         onConfigure: _onConfigure,
+        onOpen: _onOpen,
       );
     }
     final documentsDirectory = await getApplicationDocumentsDirectory();
@@ -36,7 +37,16 @@ class LocalDatabaseService {
       version: 1,
       onCreate: _onCreate,
       onConfigure: _onConfigure,
+      onOpen: _onOpen,
     );
+  }
+
+  Future<void> _onOpen(Database db) async {
+    try {
+      await db.execute('ALTER TABLE users ADD COLUMN admin_id INTEGER');
+    } catch (_) {
+      // Column already exists
+    }
   }
 
   Future<void> _onConfigure(Database db) async {
@@ -54,7 +64,9 @@ class LocalDatabaseService {
         username TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'cashier',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        admin_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (admin_id) REFERENCES users(id)
       )
     ''');
 

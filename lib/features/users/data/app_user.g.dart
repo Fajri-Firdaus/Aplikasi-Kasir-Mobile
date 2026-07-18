@@ -15,6 +15,7 @@ _AppUser _$AppUserFromJson(Map<String, dynamic> json) => _AppUser(
   isActive: json['isActive'] as bool? ?? true,
   createdAt: json['createdAt'] as String,
   password: json['password'] as String?,
+  adminId: json['adminId'] as String?,
 );
 
 Map<String, dynamic> _$AppUserToJson(_AppUser instance) => <String, dynamic>{
@@ -26,4 +27,5 @@ Map<String, dynamic> _$AppUserToJson(_AppUser instance) => <String, dynamic>{
   'isActive': instance.isActive,
   'createdAt': instance.createdAt,
   'password': instance.password,
+  'adminId': instance.adminId,
 };
