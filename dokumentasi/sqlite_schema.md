@@ -19,6 +19,7 @@ Data kasir/admin aplikasi. Digunakan untuk login dan manajemen profil.
 | `username` | TEXT | NOT NULL UNIQUE | |
 | `password` | TEXT | NOT NULL | Hashed password |
 | `role` | TEXT | NOT NULL DEFAULT 'cashier' | 'admin' atau 'cashier' |
+| `admin_id` | INTEGER | FK -> `users(id)` | Parent admin ID (Inheritance) |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
 ### 1.2 `categories`
