@@ -17,8 +17,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _usernameCtrl;
-  late final TextEditingController _oldPasswordCtrl;
-  late final TextEditingController _newPasswordCtrl;
 
   bool _initialized = false;
   bool _isLoading = false;
@@ -29,8 +27,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _nameCtrl = TextEditingController();
     _emailCtrl = TextEditingController();
     _usernameCtrl = TextEditingController();
-    _oldPasswordCtrl = TextEditingController();
-    _newPasswordCtrl = TextEditingController();
   }
 
   @override
@@ -38,45 +34,32 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _usernameCtrl.dispose();
-    _oldPasswordCtrl.dispose();
-    _newPasswordCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _saveProfile(AppUser currentUser) async {
+  void _onSavePressed(AppUser user) {
     if (!_formKey.currentState!.validate()) return;
 
+    final isEmailChanged = _emailCtrl.text.trim() != user.email;
+    final isUsernameChanged = _usernameCtrl.text.trim() != user.username;
+    
+    if (isEmailChanged || isUsernameChanged) {
+      _showVerificationDialog(user);
+    } else {
+      _saveProfileData(user);
+    }
+  }
+
+  Future<void> _saveProfileData(AppUser currentUser) async {
     setState(() => _isLoading = true);
 
     try {
       final repo = ref.read(userRepositoryProvider);
       
-      String? updatedPassword;
-      
-      // If user wants to change password
-      if (_oldPasswordCtrl.text.isNotEmpty || _newPasswordCtrl.text.isNotEmpty) {
-        if (_oldPasswordCtrl.text.isEmpty || _newPasswordCtrl.text.isEmpty) {
-          throw Exception('Keduanya, password lama dan baru, wajib diisi untuk mengubah password.');
-        }
-
-        // Authenticate the old password
-        final authenticatedUser = await repo.authenticate(
-          currentUser.username,
-          _oldPasswordCtrl.text,
-        );
-
-        if (authenticatedUser == null) {
-          throw Exception('Password lama salah.');
-        }
-
-        updatedPassword = _newPasswordCtrl.text;
-      }
-
       final updatedUser = currentUser.copyWith(
         name: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         username: _usernameCtrl.text.trim(),
-        password: updatedPassword,
       );
 
       await repo.update(currentUser.id, updatedUser);
@@ -99,10 +82,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        
-        // Reset password fields
-        _oldPasswordCtrl.clear();
-        _newPasswordCtrl.clear();
       }
     } catch (e) {
       if (mounted) {
@@ -126,6 +105,245 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showVerificationDialog(AppUser currentUser) {
+    final dialogFormKey = GlobalKey<FormState>();
+    final passCtrl = TextEditingController();
+    bool dialogLoading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Verifikasi Keamanan', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Anda mengubah informasi akun sensitif (Email/Username). Masukkan password saat ini untuk menyimpan perubahan.',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDialogField(
+                      label: 'Password Saat Ini *',
+                      controller: passCtrl,
+                      hint: 'Masukkan password Anda',
+                      obscureText: true,
+                      validator: (v) => v == null || v.isEmpty ? 'Password saat ini wajib diisi' : null,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: dialogLoading ? null : () => Navigator.pop(ctx),
+                  child: const Text('Batal', style: TextStyle(color: Color(0xFF6B7280))),
+                ),
+                ElevatedButton(
+                  onPressed: dialogLoading ? null : () async {
+                    if (!dialogFormKey.currentState!.validate()) return;
+                    
+                    setDialogState(() => dialogLoading = true);
+                    
+                    try {
+                      final repo = ref.read(userRepositoryProvider);
+                      // Authenticate password
+                      final authenticatedUser = await repo.authenticate(
+                        currentUser.username,
+                        passCtrl.text,
+                      );
+
+                      if (authenticatedUser == null) {
+                        throw Exception('Password saat ini salah. Verifikasi gagal.');
+                      }
+
+                      // Proceed to save
+                      await _saveProfileData(currentUser);
+                      
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.error_outline, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(e.toString().replaceAll('Exception: ', ''))),
+                              ],
+                            ),
+                            backgroundColor: const Color(0xFFDC2626),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    } finally {
+                      setDialogState(() => dialogLoading = false);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: dialogLoading
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Verifikasi', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+  }
+
+  void _showChangePasswordDialog(AppUser currentUser) {
+    final dialogFormKey = GlobalKey<FormState>();
+    final curPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool dialogLoading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Ubah Password', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+              content: Form(
+                key: dialogFormKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildDialogField(
+                        label: 'Password Saat Ini *',
+                        controller: curPassCtrl,
+                        hint: 'Masukkan password saat ini',
+                        obscureText: true,
+                        validator: (v) => v == null || v.isEmpty ? 'Password saat ini wajib diisi' : null,
+                      ),
+                      _buildDialogField(
+                        label: 'Password Baru *',
+                        controller: newPassCtrl,
+                        hint: 'Minimal 6 karakter',
+                        obscureText: true,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Password baru wajib diisi';
+                          if (v.length < 6) return 'Password baru minimal 6 karakter';
+                          return null;
+                        },
+                      ),
+                      _buildDialogField(
+                        label: 'Konfirmasi Password Baru *',
+                        controller: confirmPassCtrl,
+                        hint: 'Masukkan kembali password baru',
+                        obscureText: true,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Konfirmasi password wajib diisi';
+                          if (v != newPassCtrl.text) return 'Password baru tidak cocok';
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: dialogLoading ? null : () => Navigator.pop(ctx),
+                  child: const Text('Batal', style: TextStyle(color: Color(0xFF6B7280))),
+                ),
+                ElevatedButton(
+                  onPressed: dialogLoading ? null : () async {
+                    if (!dialogFormKey.currentState!.validate()) return;
+                    
+                    setDialogState(() => dialogLoading = true);
+                    
+                    try {
+                      final repo = ref.read(userRepositoryProvider);
+                      // Verify current password
+                      final authenticatedUser = await repo.authenticate(
+                        currentUser.username,
+                        curPassCtrl.text,
+                      );
+
+                      if (authenticatedUser == null) {
+                        throw Exception('Password saat ini salah.');
+                      }
+
+                      // Update the password in database
+                      final updatedUser = currentUser.copyWith(
+                        password: newPassCtrl.text,
+                      );
+                      await repo.update(currentUser.id, updatedUser);
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Row(
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text('Password berhasil diubah!'),
+                              ],
+                            ),
+                            backgroundColor: const Color(0xFF16A34A),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.error_outline, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(e.toString().replaceAll('Exception: ', ''))),
+                              ],
+                            ),
+                            backgroundColor: const Color(0xFFDC2626),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    } finally {
+                      setDialogState(() => dialogLoading = false);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: dialogLoading
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Simpan', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
   }
 
   @override
@@ -177,7 +395,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         border: Border.all(color: const Color(0xFFE5E7EB)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
+                            color: Colors.black.withOpacity(0.03),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           )
@@ -265,48 +483,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Section: Ubah Password
-                  const Text(
-                    'Ubah Password (Opsional)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF374151),
-                    ),
-                  ),
                   const SizedBox(height: 12),
-                  _buildCard(
+
+                  // Change Password Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      _buildField(
-                        label: 'Password Lama',
-                        controller: _oldPasswordCtrl,
-                        hint: 'Masukkan password saat ini',
-                        obscureText: true,
-                      ),
-                      _buildField(
-                        label: 'Password Baru',
-                        controller: _newPasswordCtrl,
-                        hint: 'Masukkan password baru',
-                        obscureText: true,
-                        validator: (v) {
-                          if (v != null && v.isNotEmpty && v.length < 6) {
-                            return 'Password baru minimal 6 karakter';
-                          }
-                          return null;
-                        },
+                      TextButton.icon(
+                        onPressed: () => _showChangePasswordDialog(user),
+                        icon: const Icon(Icons.lock_outline, size: 16, color: Color(0xFF2563EB)),
+                        label: const Text(
+                          'Ubah Password',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2563EB),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 20),
 
                   // Action Button
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : () => _saveProfile(user),
+                      onPressed: _isLoading ? null : () => _onSavePressed(user),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF2563EB),
                         foregroundColor: Colors.white,
@@ -385,6 +589,42 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDC2626))),
               focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDC2626), width: 2)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    bool obscureText = false,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF374151))),
+          const SizedBox(height: 4),
+          TextFormField(
+            controller: controller,
+            obscureText: obscureText,
+            validator: validator,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+              filled: true,
+              fillColor: const Color(0xFFF9FAFB),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+              errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFDC2626))),
+              focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
           ),
         ],

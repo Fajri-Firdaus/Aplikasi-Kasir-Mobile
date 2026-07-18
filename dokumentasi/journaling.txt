@@ -157,3 +157,11 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-18 15:52:42
+Masalah : Proses penggantian username dan email tanpa verifikasi password
+Perbaikan :
+- memisahkan form ubah password
+- menambahkan popup verifikasi password saat user melakukan perubahan email/username
+
+==========
+
