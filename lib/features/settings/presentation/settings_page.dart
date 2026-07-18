@@ -33,7 +33,7 @@ class SettingsPage extends ConsumerWidget {
                     iconBg: const Color(0xFFDBEAFE),
                     title: 'Profil Pengguna',
                     subtitle: 'Kelola informasi akun Anda',
-                    onTap: () {},
+                    onTap: () => context.go('/settings/profile'),
                   ),
                   _SettingsItem(
                     icon: Icons.people_outline,

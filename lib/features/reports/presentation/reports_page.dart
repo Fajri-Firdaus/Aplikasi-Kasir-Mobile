@@ -319,18 +319,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     );
   }
 
-  Widget _buildTabContent(ReportData reportData) {
-    switch (_activeTab) {
-      case 0: return _buildFinancialTab(reportData);
-      case 1: return _buildProductTab(reportData);
-      case 2: return _buildInventoryTab(ref.watch(productsProvider));
-      case 3: return _buildStaffTab();
-      case 4: return _buildCustomerTab();
-      case 5: return _buildXZReportTab(reportData);
-      default: return const SizedBox();
-    }
-  }
-
   Widget _buildFinancialTab(ReportData reportData) {
     return Column(children: [
       _sectionTitle('Analisis Keuangan & Pendapatan', Icons.attach_money, const Color(0xFF2563EB)),

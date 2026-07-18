@@ -148,3 +148,12 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-18 15:37:29
+Masalah : Pada menu pengaturan menu profil pengguna belum bisa berfungsi degan normal
+Perbaikan :
+- Membuat halaman profile baru profile_page.dart
+- Pendaftaran rute navigasi di file app_route.dart
+- Menghubungkan halaman pengaturan
+
+==========
+
