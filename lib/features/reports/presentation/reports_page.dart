@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/reports_provider.dart';
+import '../../products/providers/product_provider.dart';
+import '../../products/data/product.dart';
 
 class ReportsPage extends ConsumerStatefulWidget {
   const ReportsPage({super.key});
@@ -253,7 +255,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     switch (_activeTab) {
       case 0: return _buildFinancialTab(reportData);
       case 1: return _buildProductTab(reportData);
-      case 2: return _buildInventoryTab();
+      case 2: return _buildInventoryTab(ref.watch(productsProvider));
       case 3: return _buildStaffTab();
       case 4: return _buildCustomerTab();
       case 5: return _buildXZReportTab(reportData);
@@ -327,32 +329,54 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     ]);
   }
 
-  Widget _buildInventoryTab() {
-    final items = [
-      {'name': 'Teh Tarik Original', 'stock': 8, 'min': 10, 'status': 'Menipis'},
-      {'name': 'Sirup Vanilla', 'stock': 5, 'min': 15, 'status': 'Kritis'},
-      {'name': 'Gula Pasir', 'stock': 3, 'min': 10, 'status': 'Kritis'},
-      {'name': 'Kopi Bubuk', 'stock': 25, 'min': 10, 'status': 'Aman'},
-      {'name': 'Susu UHT', 'stock': 18, 'min': 10, 'status': 'Aman'},
-    ];
+  Widget _buildInventoryTab(List<Product> products) {
+    final sortedProducts = [...products]..sort((a, b) => a.stock.compareTo(b.stock));
+
+    if (sortedProducts.isEmpty) {
+      return Column(children: [
+        _sectionTitle('Inventaris & Stok', Icons.warehouse_outlined, const Color(0xFFF97316)),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
+          child: const Center(
+            child: Text('Tidak ada produk dalam inventaris', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+          ),
+        ),
+      ]);
+    }
+
     return Column(children: [
       _sectionTitle('Inventaris & Stok', Icons.warehouse_outlined, const Color(0xFFF97316)),
       const SizedBox(height: 12),
       Container(
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
-        child: Column(children: items.asMap().entries.map((e) {
-          final i = e.key; final item = e.value;
-          final isCritical = item['status'] == 'Kritis';
-          final isWarning = item['status'] == 'Menipis';
+        child: Column(children: sortedProducts.asMap().entries.map((e) {
+          final i = e.key;
+          final product = e.value;
+          final stock = product.stock;
+          const min = 10;
+          
+          final String status;
+          if (stock <= 3) {
+            status = 'Kritis';
+          } else if (stock <= 10) {
+            status = 'Menipis';
+          } else {
+            status = 'Aman';
+          }
+
+          final isCritical = status == 'Kritis';
+          final isWarning = status == 'Menipis';
           final statusColor = isCritical ? const Color(0xFFDC2626) : isWarning ? const Color(0xFFEA580C) : const Color(0xFF16A34A);
           final statusBg = isCritical ? const Color(0xFFFEE2E2) : isWarning ? const Color(0xFFFFEDD5) : const Color(0xFFDCFCE7);
-          final stock = item['stock'] as int; final min = item['min'] as int;
+
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(border: i < items.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF3F4F6))) : null),
+            decoration: BoxDecoration(border: i < sortedProducts.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF3F4F6))) : null),
             child: Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${item['name']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 4),
                 ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(
                   value: (stock / min).clamp(0.0, 1.0), minHeight: 5,
@@ -366,7 +390,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(8)),
-                child: Text('${item['status']}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
+                child: Text(status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
               ),
             ]),
           );

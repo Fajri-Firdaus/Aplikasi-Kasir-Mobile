@@ -123,3 +123,10 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026:07:18 15:11:27
+Masalah : Pada menu laporan tab inventaris belum berfungsi dan tidak terhubung ke database
+Perbaikan :
+- Menintegrasikan provider produk di dalam file lib/features/reports/presentation/reports_page.dart
+
+==========
+
