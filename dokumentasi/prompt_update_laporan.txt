@@ -1,0 +1,8 @@
+pada sistem shift saat shift sedang aktif, buat dua pilihan yakni berganti shift atau menutup z report dengan kriteria berikut: 
+1. saat shift berganti user akan melakukan setoran shift dan shif akan tertutup dengan id date dan shift keberapa pada hari tersebut.
+2. jika ada user ingin melanjutkan shift berikutnya, user tersebut akan memasukkan modal awal untuk memulai shift.
+3. jika ada user melakukan z report, system akan menghitung setoran shift tersebut terlebih dahulu ditambah dengan laporan keseluruhan shift di hari tersebut.
+4. pada history buat user bisa melihat report berdasarkan shift atau berdasarkan hari.
+5. pastikan pada saat proses ganti hari dan tutup kasir (z report) memiliki timestamp yang sesuai dengan Waktu aslinya.
+
+Jika kamu memerlukan perubahan SQLite schema saya mengizinkannya (jika ada perubahan lakukan perubahan juga di dokumentasi sqlite_schema.md), jika ada yang kurang jelas tanyakan saja kepada saya.

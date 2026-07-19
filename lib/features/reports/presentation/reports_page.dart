@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/reports_provider.dart';
+import '../data/report_local_repository.dart';
 import '../../products/providers/product_provider.dart';
 import '../../products/data/product.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class ReportsPage extends ConsumerStatefulWidget {
   const ReportsPage({super.key});
@@ -15,16 +17,26 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   String _selectedDateLabel = 'Hari Ini';
   bool _showDateFilter = false;
   bool _showExportMenu = false;
+  String _historyMode = 'shift';
   late final PageController _pageController;
   late final ScrollController _tabScrollController;
+  late final TextEditingController _startingCashController;
+  late final TextEditingController _actualCashController;
+  late final TextEditingController _notesController;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _activeTab);
     _tabScrollController = ScrollController();
+    _startingCashController = TextEditingController(text: '500000');
+    _actualCashController = TextEditingController();
+    _notesController = TextEditingController();
     Future.microtask(() {
       ref.read(reportsProvider.notifier).refresh();
+      ref.read(activeShiftProvider.notifier).refreshShift();
+      ref.read(closedShiftsProvider.notifier).refreshHistory();
+      ref.read(dailyReportsProvider.notifier).refreshHistory();
     });
   }
 
@@ -32,6 +44,9 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   void dispose() {
     _pageController.dispose();
     _tabScrollController.dispose();
+    _startingCashController.dispose();
+    _actualCashController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -501,65 +516,978 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   }
 
   Widget _buildXZReportTab(ReportData reportData) {
-    return Column(children: [
-      _sectionTitle('Laporan X-Report & Z-Report', Icons.summarize_outlined, const Color(0xFF7C3AED)),
-      const SizedBox(height: 12),
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)]),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Row(children: [
-            Icon(Icons.timer_outlined, color: Colors.white70, size: 18),
-            SizedBox(width: 6),
-            Text('X-Report (Shift Aktif)', style: TextStyle(color: Colors.white70, fontSize: 13)),
-          ]),
-          const SizedBox(height: 12),
-          Text('Rp ${_formatCurrency(reportData.totalRevenue.toInt())}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
-          const Text('Total penjualan shift ini', style: TextStyle(color: Colors.white70, fontSize: 12)),
-          const SizedBox(height: 12),
-          Row(children: [
-            _xzStat('Transaksi', '${reportData.totalTransactions}'),
-            const SizedBox(width: 20),
-            _xzStat('Mulai Shift', '08:00'),
-            const SizedBox(width: 20),
-            _xzStat('Durasi', '6j 30m'),
-          ]),
-          const SizedBox(height: 12),
-          SizedBox(width: double.infinity, child: OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white60), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            child: const Text('Cetak X-Report', style: TextStyle(fontWeight: FontWeight.w700)),
-          )),
-        ]),
-      ),
-      const SizedBox(height: 12),
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Row(children: [
-            Icon(Icons.assignment_turned_in_outlined, color: Color(0xFF7C3AED), size: 18),
-            SizedBox(width: 6),
-            Text('Z-Report (Tutup Hari)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-          ]),
-          const SizedBox(height: 8),
-          const Text('Hasilkan laporan akhir hari untuk menutup semua shift dan menyimpan data penjualan harian.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-          const SizedBox(height: 12),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C3AED), foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    final activeShiftAsync = ref.watch(activeShiftProvider);
+    final closedShiftsAsync = ref.watch(closedShiftsProvider);
+    final dailyReportsAsync = ref.watch(dailyReportsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        activeShiftAsync.when(
+          data: (shift) {
+            if (shift == null) {
+              return _buildNoActiveShiftView();
+            }
+            return _buildActiveShiftView(shift);
+          },
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: CircularProgressIndicator(),
             ),
-            child: const Text('Generate Z-Report', style: TextStyle(fontWeight: FontWeight.w700)),
-          )),
-        ]),
+          ),
+          error: (err, stack) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text('Terjadi kesalahan: $err', style: const TextStyle(color: Colors.red)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: _sectionTitle('Riwayat Laporan', Icons.history, const Color(0xFF4B5563))),
+            DropdownButton<String>(
+              value: _historyMode,
+              items: const [
+                DropdownMenuItem(value: 'shift', child: Text('Berdasarkan Shift', style: TextStyle(fontSize: 12))),
+                DropdownMenuItem(value: 'day', child: Text('Berdasarkan Hari', style: TextStyle(fontSize: 12))),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _historyMode = val;
+                  });
+                }
+              },
+              underline: const SizedBox(),
+              icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _historyMode == 'shift'
+            ? closedShiftsAsync.when(
+                data: (shifts) {
+                  if (shifts.isEmpty) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Belum ada riwayat shift yang ditutup',
+                          style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: shifts.map((s) {
+                      DateTime? parsedEnd = DateTime.tryParse(s.endTime ?? '');
+                      if (parsedEnd != null) {
+                        if (!parsedEnd.isUtc) parsedEnd = DateTime.parse('${s.endTime!}Z');
+                        parsedEnd = parsedEnd.toLocal();
+                      }
+                      final endStr = parsedEnd != null 
+                          ? "${parsedEnd.day.toString().padLeft(2, '0')}/${parsedEnd.month.toString().padLeft(2, '0')}/${parsedEnd.year} ${parsedEnd.hour.toString().padLeft(2, '0')}:${parsedEnd.minute.toString().padLeft(2, '0')}"
+                          : "-";
+
+                      final totalSales = s.totalSalesCash + s.totalSalesNonCash;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        color: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF3F4F6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.assignment_turned_in_outlined, color: Color(0xFF4B5563)),
+                          ),
+                          title: Text(
+                            'Shift #${s.shiftId} (Ke-${s.shiftNumber}) - Kasir: ${s.username}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF111827)),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              'Ditutup: $endStr\nTotal Penjualan: Rp ${_formatCurrency(totalSales.toInt())}',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4),
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.print_outlined, color: Color(0xFF4B5563)),
+                            onPressed: () => _showPrintPreviewDialog(s, isZReport: true),
+                            tooltip: 'Cetak Z-Report',
+                          ),
+                          onTap: () => _showPrintPreviewDialog(s, isZReport: true),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                error: (err, stack) => Text(
+                  'Gagal memuat riwayat: $err',
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              )
+            : dailyReportsAsync.when(
+                data: (reports) {
+                  if (reports.isEmpty) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Belum ada riwayat harian yang ditutup',
+                          style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: reports.map((d) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        color: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEFF6FF),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.date_range_outlined, color: Color(0xFF3B82F6)),
+                          ),
+                          title: Text(
+                            'Z-Report Tanggal: ${d.date}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF111827)),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              'Total Shift: ${d.totalShiftsCount} | Trx: ${d.totalTransactions}\nSales: Rp ${_formatCurrency((d.totalSalesCash + d.totalSalesNonCash).toInt())}',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4),
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.print_outlined, color: Color(0xFF3B82F6)),
+                            onPressed: () => _showDailyPrintPreviewDialog(d),
+                            tooltip: 'Cetak Z-Report Harian',
+                          ),
+                          onTap: () => _showDailyPrintPreviewDialog(d),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                error: (err, stack) => Text(
+                  'Gagal memuat riwayat harian: $err',
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ),
+      ],
+    );
+  }
+
+  Widget _buildNoActiveShiftView() {
+    return Column(
+      children: [
+        _sectionTitle('Laporan X-Report & Z-Report', Icons.summarize_outlined, const Color(0xFF7C3AED)),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(color: Color(0xFFF3E8FF), shape: BoxShape.circle),
+                child: const Icon(Icons.storefront_outlined, color: Color(0xFF7C3AED), size: 32),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Shift Kasir Belum Aktif',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Silakan buka shift kasir baru terlebih dahulu untuk mulai mencatat transaksi dan mengaudit saldo laci kas.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), height: 1.4),
+              ),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Saldo Awal Laci Kas (Starting Cash)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _startingCashController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  prefixText: 'Rp ',
+                  hintText: '0',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 2)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final startingCash = double.tryParse(_startingCashController.text) ?? 0.0;
+                    final currentUser = ref.read(currentUserProvider).value;
+                    final userId = currentUser?.id ?? '1';
+                    
+                    try {
+                      await ref.read(activeShiftProvider.notifier).openNewShift(userId, startingCash);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Shift kasir berhasil dibuka.'),
+                          backgroundColor: Color(0xFF16A34A),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Gagal membuka shift: $e'),
+                          backgroundColor: const Color(0xFFDC2626),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Buka Shift Kasir', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Atau cetak Z-Report hari ini jika semua shift telah selesai:', style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final todayDateStr = DateTime.now().toLocal().toString().substring(0, 10);
+                    final dailySummary = await ref.read(reportRepositoryProvider).getDailyReportSummary(todayDateStr);
+                    if (!mounted) return;
+                    if (dailySummary != null) {
+                      _showDailyPrintPreviewDialog(dailySummary);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Belum ada data shift untuk hari ini.'),
+                          backgroundColor: Color(0xFFDC2626),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.summarize_outlined, size: 14),
+                  label: const Text('Cetak Z-Report Hari Ini', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF4B5563),
+                    side: const BorderSide(color: Color(0xFFD1D5DB)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveShiftView(ShiftSummary shift) {
+    DateTime? parsedStart = DateTime.tryParse(shift.startTime);
+    if (parsedStart != null) {
+      if (!parsedStart.isUtc) {
+        parsedStart = DateTime.parse('${shift.startTime}Z');
+      }
+      parsedStart = parsedStart.toLocal();
+    }
+    final startStr = parsedStart != null 
+        ? "${parsedStart.day.toString().padLeft(2, '0')}/${parsedStart.month.toString().padLeft(2, '0')} ${parsedStart.hour.toString().padLeft(2, '0')}:${parsedStart.minute.toString().padLeft(2, '0')}"
+        : "-";
+
+    final duration = parsedStart != null ? DateTime.now().difference(parsedStart) : Duration.zero;
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final durationStr = "${hours}j ${minutes}m";
+
+    return Column(
+      children: [
+        _sectionTitle('Laporan X-Report & Z-Report', Icons.summarize_outlined, const Color(0xFF7C3AED)),
+        const SizedBox(height: 12),
+        // Active Shift Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)]),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.timer_outlined, color: Colors.white70, size: 16),
+                      const SizedBox(width: 6),
+                      Text('SHIFT #${shift.shiftId} (Ke-${shift.shiftNumber}) AKTIF', style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
+                    child: Text('Kasir: ${shift.username}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('Rp ${_formatCurrency(shift.expectedDrawerCash.toInt())}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+              const Text('Ekspektasi Uang Tunai di Laci', style: TextStyle(color: Colors.white70, fontSize: 11)),
+              const SizedBox(height: 16),
+              const Divider(color: Colors.white24),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _xzStat('Mulai', startStr),
+                  _xzStat('Durasi', durationStr),
+                  _xzStat('Transaksi', '${shift.totalTransactions}'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showPrintPreviewDialog(shift, isZReport: false),
+                  icon: const Icon(Icons.print_outlined, size: 16, color: Colors.white),
+                  label: const Text('Cetak / Review X-Report', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0x80FFFFFF)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Shift Details Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Detail Kas Shift Ini', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
+              const SizedBox(height: 12),
+              _rowDetail('Saldo Awal (Starting Cash)', 'Rp ${_formatCurrency(shift.startingCash.toInt())}'),
+              _rowDetail('Penjualan Tunai', 'Rp ${_formatCurrency(shift.totalSalesCash.toInt())}'),
+              _rowDetail('Penjualan Non-Tunai', 'Rp ${_formatCurrency(shift.totalSalesNonCash.toInt())}'),
+              _rowDetail('Total Penjualan Kotor', 'Rp ${_formatCurrency((shift.totalSalesCash + shift.totalSalesNonCash).toInt())}', isBold: true),
+              _rowDetail('Void / Pembatalan', 'Rp ${_formatCurrency(shift.totalSalesVoid.toInt())}', color: const Color(0xFFDC2626)),
+              const Divider(),
+              _rowDetail('Ekspektasi Uang Tunai Laci', 'Rp ${_formatCurrency(shift.expectedDrawerCash.toInt())}', isBold: true, color: const Color(0xFF2563EB)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Z-Report / Handover Form Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.lock_outline, color: Color(0xFFEF4444), size: 18),
+                  SizedBox(width: 6),
+                  Text('Tutup Shift / Ganti Shift', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Masukkan total uang fisik laci untuk mencatat setoran sebelum berpindah shift atau menutup hari (Z-Report).',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Jumlah Uang Fisik Setoran di Laci',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _actualCashController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  prefixText: 'Rp ',
+                  hintText: 'Masukkan jumlah uang setoran',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _handleCloseShift(shift, isDailyZReport: false),
+                        icon: const Icon(Icons.sync_alt, size: 16),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4F46E5),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        label: const Text('Ganti Shift', style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _handleCloseShift(shift, isDailyZReport: true),
+                        icon: const Icon(Icons.summarize_outlined, size: 16),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        label: const Text('Tutup Hari', style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _rowDetail(String label, String value, {bool isBold = false, Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: const Color(0xFF4B5563), fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(value, style: TextStyle(fontSize: 12, color: color ?? const Color(0xFF111827), fontWeight: FontWeight.bold)),
+        ],
       ),
-    ]);
+    );
+  }
+
+  void _handleCloseShift(ShiftSummary shift, {required bool isDailyZReport}) {
+    final text = _actualCashController.text.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan masukkan jumlah uang fisik setoran.'),
+          backgroundColor: Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final actualCash = double.tryParse(text);
+    if (actualCash == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Jumlah uang setoran harus berupa angka.'),
+          backgroundColor: Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isDailyZReport ? 'Tutup Hari (Z-Report)?' : 'Berganti Shift?', style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(isDailyZReport 
+            ? 'Anda akan menutup shift kasir saat ini sekaligus mengkonsolidasikan seluruh shift hari ini untuk mencetak Z-Report Harian.'
+            : 'Anda akan menutup shift kasir aktif saat ini (Shift Handover). Kasir berikutnya dapat membuka shift baru.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: Color(0xFF6B7280))),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx); // Close confirmation dialog
+              
+              try {
+                final closedSummary = await ref.read(activeShiftProvider.notifier).closeActiveShift(actualCash);
+                if (!mounted) return;
+                _actualCashController.clear();
+                
+                if (closedSummary != null) {
+                  if (isDailyZReport) {
+                    final todayStr = DateTime.now().toLocal().toString().substring(0, 10);
+                    final dailySummary = await ref.read(reportRepositoryProvider).getDailyReportSummary(todayStr);
+                    if (dailySummary != null) {
+                      _showDailyReportSuccessDialog(dailySummary);
+                    }
+                  } else {
+                    _showCloseShiftSuccessDialog(closedSummary);
+                  }
+                }
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gagal menutup shift: $e'),
+                    backgroundColor: const Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDailyZReport ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(isDailyZReport ? 'Tutup Hari' : 'Ganti Shift'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCloseShiftSuccessDialog(ShiftSummary closedShift) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final discrepancy = closedShift.discrepancy;
+        final isMatch = discrepancy == 0;
+        final isShortage = discrepancy < 0;
+        
+        final discrepancyColor = isMatch 
+            ? const Color(0xFF16A34A) 
+            : isShortage ? const Color(0xFFDC2626) : const Color(0xFF2563EB);
+            
+        final discrepancyLabel = isMatch
+            ? 'Sesuai'
+            : isShortage ? 'Kekurangan (Shortage)' : 'Kelebihan (Over)';
+
+        final sign = discrepancy > 0 ? "+" : "";
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Column(
+            children: [
+              const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 48),
+              const SizedBox(height: 12),
+              const Text(
+                'Shift Berhasil Ditutup!',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Berikut ringkasan Z-Report penutupan shift kasir:', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+              const SizedBox(height: 16),
+              _rowDetail('Shift Ke', '${closedShift.shiftNumber}'),
+              _rowDetail('Total Penjualan', 'Rp ${_formatCurrency((closedShift.totalSalesCash + closedShift.totalSalesNonCash).toInt())}'),
+              _rowDetail('Ekspektasi Uang Laci', 'Rp ${_formatCurrency(closedShift.expectedDrawerCash.toInt())}'),
+              _rowDetail('Uang Fisik Aktual', 'Rp ${_formatCurrency(closedShift.endingCash.toInt())}'),
+              const Divider(),
+              _rowDetail(
+                discrepancyLabel,
+                'Rp $sign${_formatCurrency(discrepancy.toInt())}',
+                isBold: true,
+                color: discrepancyColor,
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _showPrintPreviewDialog(closedShift, isZReport: true);
+              },
+              icon: const Icon(Icons.print, size: 16),
+              label: const Text('Cetak Z-Report'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Selesai'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDailyReportSuccessDialog(DailyReportSummary dailyReport) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final discrepancy = dailyReport.totalDiscrepancy;
+        final isMatch = discrepancy == 0;
+        final isShortage = discrepancy < 0;
+        
+        final discrepancyColor = isMatch 
+            ? const Color(0xFF16A34A) 
+            : isShortage ? const Color(0xFFDC2626) : const Color(0xFF2563EB);
+            
+        final discrepancyLabel = isMatch
+            ? 'Sesuai'
+            : isShortage ? 'Kekurangan (Shortage)' : 'Kelebihan (Over)';
+
+        final sign = discrepancy > 0 ? "+" : "";
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Column(
+            children: [
+              const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 48),
+              const SizedBox(height: 12),
+              const Text(
+                'Tutup Hari Berhasil!',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Z-Report Harian konsolidasi untuk tanggal ${dailyReport.date}:', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+              const SizedBox(height: 16),
+              _rowDetail('Total Shift', '${dailyReport.totalShiftsCount}'),
+              _rowDetail('Total Penjualan', 'Rp ${_formatCurrency((dailyReport.totalSalesCash + dailyReport.totalSalesNonCash).toInt())}'),
+              _rowDetail('Ekspektasi Uang Laci', 'Rp ${_formatCurrency(dailyReport.totalExpectedCash.toInt())}'),
+              _rowDetail('Uang Fisik Aktual', 'Rp ${_formatCurrency(dailyReport.totalEndingCash.toInt())}'),
+              const Divider(),
+              _rowDetail(
+                discrepancyLabel,
+                'Rp $sign${_formatCurrency(discrepancy.toInt())}',
+                isBold: true,
+                color: discrepancyColor,
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _showDailyPrintPreviewDialog(dailyReport);
+              },
+              icon: const Icon(Icons.print, size: 16),
+              label: const Text('Cetak Z-Report Harian'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Selesai'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showReceiptPreviewDialog(String title, String receiptText) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 320,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 10)],
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.receipt, color: Colors.grey, size: 28),
+                    const SizedBox(height: 10),
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: Text(
+                        receiptText,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 10,
+                          height: 1.3,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Laporan berhasil dicetak ke printer.'),
+                          backgroundColor: Color(0xFF2563EB),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.print, size: 16),
+                    label: const Text('Cetak Struk'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF2563EB),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF374151),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Tutup'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPrintPreviewDialog(ShiftSummary shift, {required bool isZReport}) {
+    final title = isZReport ? 'Pratinjau Struk Z-Report' : 'Pratinjau Struk X-Report';
+    final receipt = _generateReceiptText(shift, isZReport);
+    _showReceiptPreviewDialog(title, receipt);
+  }
+
+  void _showDailyPrintPreviewDialog(DailyReportSummary summary) {
+    final receipt = _generateDailyReceiptText(summary);
+    _showReceiptPreviewDialog('Pratinjau Struk Z-Report Harian', receipt);
+  }
+
+  String _generateReceiptText(ShiftSummary shift, bool isZReport) {
+    DateTime? parsedStart = DateTime.tryParse(shift.startTime);
+    if (parsedStart != null) {
+      if (!parsedStart.isUtc) parsedStart = DateTime.parse('${shift.startTime}Z');
+      parsedStart = parsedStart.toLocal();
+    }
+    final startStr = parsedStart != null 
+        ? "${parsedStart.day}/${parsedStart.month}/${parsedStart.year} ${parsedStart.hour.toString().padLeft(2, '0')}:${parsedStart.minute.toString().padLeft(2, '0')}"
+        : "-";
+
+    String endStr = "-";
+    if (shift.endTime != null) {
+      DateTime? parsedEnd = DateTime.tryParse(shift.endTime!);
+      if (parsedEnd != null) {
+        if (!parsedEnd.isUtc) parsedEnd = DateTime.parse('${shift.endTime!}Z');
+        parsedEnd = parsedEnd.toLocal();
+      }
+      endStr = parsedEnd != null 
+          ? "${parsedEnd.day}/${parsedEnd.month}/${parsedEnd.year} ${parsedEnd.hour.toString().padLeft(2, '0')}:${parsedEnd.minute.toString().padLeft(2, '0')}"
+          : "-";
+    }
+
+    final totalSales = shift.totalSalesCash + shift.totalSalesNonCash;
+
+    final buffer = StringBuffer();
+    buffer.writeln("================================");
+    buffer.writeln("       MOBILE POS SYSTEM        ");
+    buffer.writeln("      Jl. Merdeka No. 123       ");
+    buffer.writeln("         08123456789            ");
+    buffer.writeln("================================");
+    buffer.writeln("          ${isZReport ? 'Z-REPORT (SHIFT CLOSE)' : 'X-REPORT (MID)'}");
+    buffer.writeln("--------------------------------");
+    buffer.writeln("Shift ID    : #${shift.shiftId} (Shift Ke-${shift.shiftNumber})");
+    buffer.writeln("Kasir       : ${shift.username}");
+    buffer.writeln("Waktu Mulai : $startStr");
+    if (isZReport) {
+      buffer.writeln("Waktu Tutup : $endStr");
+    }
+    buffer.writeln("Status      : ${shift.status.toUpperCase()}");
+    buffer.writeln("--------------------------------");
+    buffer.writeln("Saldo Awal  : Rp ${_formatCurrency(shift.startingCash.toInt())}");
+    buffer.writeln("Sales Cash  : Rp ${_formatCurrency(shift.totalSalesCash.toInt())}");
+    buffer.writeln("Sales QRIS  : Rp ${_formatCurrency(shift.totalSalesNonCash.toInt())}");
+    buffer.writeln("Total Sales : Rp ${_formatCurrency(totalSales.toInt())}");
+    buffer.writeln("Void Txns   : Rp ${_formatCurrency(shift.totalSalesVoid.toInt())}");
+    buffer.writeln("Total Trx   : ${shift.totalTransactions}");
+    buffer.writeln("--------------------------------");
+    buffer.writeln("Expected    : Rp ${_formatCurrency(shift.expectedDrawerCash.toInt())}");
+    if (isZReport) {
+      buffer.writeln("Actual Cash : Rp ${_formatCurrency(shift.endingCash.toInt())}");
+      final prefix = shift.discrepancy >= 0 ? "+" : "";
+      buffer.writeln("Selisih     : Rp $prefix${_formatCurrency(shift.discrepancy.toInt())}");
+    }
+    buffer.writeln("================================");
+    buffer.writeln("        BUKTI AUDIT KAS        ");
+    buffer.writeln("    ${DateTime.now().toLocal().toString().substring(0, 16)}    ");
+    buffer.writeln("================================");
+    return buffer.toString();
+  }
+
+  String _generateDailyReceiptText(DailyReportSummary summary) {
+    final buffer = StringBuffer();
+    buffer.writeln("================================");
+    buffer.writeln("       MOBILE POS SYSTEM        ");
+    buffer.writeln("      Jl. Merdeka No. 123       ");
+    buffer.writeln("         08123456789            ");
+    buffer.writeln("================================");
+    buffer.writeln("        DAILY Z-REPORT          ");
+    buffer.writeln("--------------------------------");
+    buffer.writeln("Tanggal     : ${summary.date}");
+    buffer.writeln("Total Shift : ${summary.totalShiftsCount}");
+    buffer.writeln("--------------------------------");
+    buffer.writeln("Total Modal : Rp ${_formatCurrency(summary.totalStartingCash.toInt())}");
+    buffer.writeln("Sales Cash  : Rp ${_formatCurrency(summary.totalSalesCash.toInt())}");
+    buffer.writeln("Sales QRIS  : Rp ${_formatCurrency(summary.totalSalesNonCash.toInt())}");
+    buffer.writeln("Total Sales : Rp ${_formatCurrency((summary.totalSalesCash + summary.totalSalesNonCash).toInt())}");
+    buffer.writeln("Void Txns   : Rp ${_formatCurrency(summary.totalSalesVoid.toInt())}");
+    buffer.writeln("Total Trx   : ${summary.totalTransactions}");
+    buffer.writeln("--------------------------------");
+    buffer.writeln("Expected    : Rp ${_formatCurrency(summary.totalExpectedCash.toInt())}");
+    buffer.writeln("Actual Cash : Rp ${_formatCurrency(summary.totalEndingCash.toInt())}");
+    final prefix = summary.totalDiscrepancy >= 0 ? "+" : "";
+    buffer.writeln("Selisih     : Rp $prefix${_formatCurrency(summary.totalDiscrepancy.toInt())}");
+    buffer.writeln("================================");
+    buffer.writeln("       TUTUP HARI BERHASIL      ");
+    buffer.writeln("    ${DateTime.now().toLocal().toString().substring(0, 16)}    ");
+    buffer.writeln("================================");
+    return buffer.toString();
   }
 
   Widget _sectionTitle(String title, IconData icon, Color color) {

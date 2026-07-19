@@ -59,6 +59,68 @@ class CashierPerformance {
   });
 }
 
+class ShiftSummary {
+  final String shiftId;
+  final String userId;
+  final String username;
+  final String startTime;
+  final String? endTime;
+  final double startingCash;
+  final double endingCash;
+  final double totalSalesCash;
+  final double totalSalesNonCash;
+  final double totalSalesVoid;
+  final double expectedDrawerCash;
+  final double discrepancy;
+  final int totalTransactions;
+  final String status;
+  final int shiftNumber;
+
+  const ShiftSummary({
+    required this.shiftId,
+    required this.userId,
+    required this.username,
+    required this.startTime,
+    this.endTime,
+    required this.startingCash,
+    required this.endingCash,
+    required this.totalSalesCash,
+    required this.totalSalesNonCash,
+    required this.totalSalesVoid,
+    required this.expectedDrawerCash,
+    required this.discrepancy,
+    required this.totalTransactions,
+    required this.status,
+    required this.shiftNumber,
+  });
+}
+
+class DailyReportSummary {
+  final String date;
+  final double totalStartingCash;
+  final double totalEndingCash;
+  final double totalSalesCash;
+  final double totalSalesNonCash;
+  final double totalSalesVoid;
+  final double totalExpectedCash;
+  final double totalDiscrepancy;
+  final int totalTransactions;
+  final int totalShiftsCount;
+
+  DailyReportSummary({
+    required this.date,
+    required this.totalStartingCash,
+    required this.totalEndingCash,
+    required this.totalSalesCash,
+    required this.totalSalesNonCash,
+    required this.totalSalesVoid,
+    required this.totalExpectedCash,
+    required this.totalDiscrepancy,
+    required this.totalTransactions,
+    required this.totalShiftsCount,
+  });
+}
+
 class ReportLocalRepository {
   final LocalDatabaseService _dbService;
 
@@ -232,5 +294,189 @@ class ReportLocalRepository {
         totalSales: (row['total_nominal_penjualan'] as num? ?? 0.0).toDouble(),
       );
     }).toList();
+  }
+
+  // --- X/Z Report Specific Queries ---
+  Future<ShiftSummary?> getShiftSummary(int shiftId) async {
+    final db = await _dbService.database;
+
+    final List<Map<String, dynamic>> shiftMaps = await db.query(
+      'shifts',
+      where: 'id = ?',
+      whereArgs: [shiftId],
+    );
+
+    if (shiftMaps.isEmpty) return null;
+    final shiftMap = shiftMaps.first;
+
+    final List<Map<String, dynamic>> userMaps = await db.query(
+      'users',
+      columns: ['username'],
+      where: 'id = ?',
+      whereArgs: [shiftMap['user_id']],
+    );
+    final username = userMaps.isNotEmpty ? (userMaps.first['username'] as String? ?? 'Unknown') : 'Unknown';
+
+    final List<Map<String, dynamic>> cashSalesMaps = await db.rawQuery('''
+      SELECT COALESCE(SUM(total_amount), 0.0) AS total
+      FROM transactions
+      WHERE shift_id = ? AND payment_method = 'cash' AND status != 'void'
+    ''', [shiftId]);
+    final double cashSales = cashSalesMaps.isNotEmpty ? (cashSalesMaps.first['total'] as num? ?? 0.0).toDouble() : 0.0;
+
+    final List<Map<String, dynamic>> nonCashSalesMaps = await db.rawQuery('''
+      SELECT COALESCE(SUM(total_amount), 0.0) AS total
+      FROM transactions
+      WHERE shift_id = ? AND payment_method != 'cash' AND status != 'void'
+    ''', [shiftId]);
+    final double nonCashSales = nonCashSalesMaps.isNotEmpty ? (nonCashSalesMaps.first['total'] as num? ?? 0.0).toDouble() : 0.0;
+
+    final List<Map<String, dynamic>> voidSalesMaps = await db.rawQuery('''
+      SELECT COALESCE(SUM(total_amount), 0.0) AS total
+      FROM transactions
+      WHERE shift_id = ? AND status = 'void'
+    ''', [shiftId]);
+    final double voidSales = voidSalesMaps.isNotEmpty ? (voidSalesMaps.first['total'] as num? ?? 0.0).toDouble() : 0.0;
+
+    final List<Map<String, dynamic>> txnsMaps = await db.rawQuery('''
+      SELECT COUNT(id) AS count
+      FROM transactions
+      WHERE shift_id = ? AND status != 'void'
+    ''', [shiftId]);
+    final int totalTxns = txnsMaps.isNotEmpty ? (txnsMaps.first['count'] as int? ?? 0) : 0;
+
+    final startingCash = (shiftMap['starting_cash'] as num? ?? 0.0).toDouble();
+    final endingCash = (shiftMap['ending_cash'] as num? ?? 0.0).toDouble();
+    final expectedCash = startingCash + cashSales;
+    final discrepancy = shiftMap['status'] == 'closed' ? endingCash - expectedCash : 0.0;
+    final shiftNumber = shiftMap['shift_number'] as int? ?? 1;
+
+    return ShiftSummary(
+      shiftId: shiftId.toString(),
+      userId: shiftMap['user_id'].toString(),
+      username: username,
+      startTime: shiftMap['start_time'] as String,
+      endTime: shiftMap['end_time'] as String?,
+      startingCash: startingCash,
+      endingCash: endingCash,
+      totalSalesCash: cashSales,
+      totalSalesNonCash: nonCashSales,
+      totalSalesVoid: voidSales,
+      expectedDrawerCash: expectedCash,
+      discrepancy: discrepancy,
+      totalTransactions: totalTxns,
+      status: shiftMap['status'] as String? ?? 'open',
+      shiftNumber: shiftNumber,
+    );
+  }
+
+  Future<ShiftSummary?> getActiveShiftSummary() async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'shifts',
+      columns: ['id'],
+      where: "status = 'open'",
+      limit: 1,
+    );
+
+    if (maps.isEmpty) return null;
+    final activeShiftId = maps.first['id'] as int;
+    return getShiftSummary(activeShiftId);
+  }
+
+  Future<List<ShiftSummary>> getClosedShifts() async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'shifts',
+      where: "status = 'closed'",
+      orderBy: 'end_time DESC',
+    );
+
+    final List<ShiftSummary> list = [];
+    for (final map in maps) {
+      final summary = await getShiftSummary(map['id'] as int);
+      if (summary != null) {
+        list.add(summary);
+      }
+    }
+    return list;
+  }
+
+  Future<DailyReportSummary?> getDailyReportSummary(String dateStr) async {
+    final db = await _dbService.database;
+
+    final List<Map<String, dynamic>> shifts = await db.rawQuery('''
+      SELECT id
+      FROM shifts
+      WHERE DATE(start_time, 'localtime') = ?
+    ''', [dateStr]);
+
+    if (shifts.isEmpty) return null;
+
+    double totalStartingCash = 0.0;
+    double totalEndingCash = 0.0;
+    double totalSalesCash = 0.0;
+    double totalSalesNonCash = 0.0;
+    double totalSalesVoid = 0.0;
+    int totalTransactions = 0;
+
+    for (final s in shifts) {
+      final shiftId = s['id'] as int;
+      final summary = await getShiftSummary(shiftId);
+      if (summary != null) {
+        totalStartingCash += summary.startingCash;
+        totalEndingCash += summary.endingCash;
+        totalSalesCash += summary.totalSalesCash;
+        totalSalesNonCash += summary.totalSalesNonCash;
+        totalSalesVoid += summary.totalSalesVoid;
+        totalTransactions += summary.totalTransactions;
+      }
+    }
+
+    final totalExpectedCash = totalStartingCash + totalSalesCash;
+    
+    double totalDiscrepancy = 0.0;
+    for (final s in shifts) {
+      final shiftId = s['id'] as int;
+      final summary = await getShiftSummary(shiftId);
+      if (summary != null && summary.status == 'closed') {
+        totalDiscrepancy += summary.discrepancy;
+      }
+    }
+
+    return DailyReportSummary(
+      date: dateStr,
+      totalStartingCash: totalStartingCash,
+      totalEndingCash: totalEndingCash,
+      totalSalesCash: totalSalesCash,
+      totalSalesNonCash: totalSalesNonCash,
+      totalSalesVoid: totalSalesVoid,
+      totalExpectedCash: totalExpectedCash,
+      totalDiscrepancy: totalDiscrepancy,
+      totalTransactions: totalTransactions,
+      totalShiftsCount: shifts.length,
+    );
+  }
+
+  Future<List<DailyReportSummary>> getDailyReportsHistory() async {
+    final db = await _dbService.database;
+
+    final List<Map<String, dynamic>> datesMaps = await db.rawQuery('''
+      SELECT DISTINCT DATE(start_time, 'localtime') as date_str
+      FROM shifts
+      ORDER BY date_str DESC
+    ''');
+
+    final List<DailyReportSummary> list = [];
+    for (final row in datesMaps) {
+      final dateStr = row['date_str'] as String?;
+      if (dateStr != null) {
+        final summary = await getDailyReportSummary(dateStr);
+        if (summary != null) {
+          list.add(summary);
+        }
+      }
+    }
+    return list;
   }
 }

@@ -47,6 +47,11 @@ class LocalDatabaseService {
     } catch (_) {
       // Column already exists
     }
+    try {
+      await db.execute('ALTER TABLE shifts ADD COLUMN shift_number INTEGER DEFAULT 1');
+    } catch (_) {
+      // Column already exists
+    }
   }
 
   Future<void> _onConfigure(Database db) async {
@@ -126,6 +131,7 @@ class LocalDatabaseService {
         starting_cash REAL DEFAULT 0.0,
         ending_cash REAL DEFAULT 0.0,
         status TEXT CHECK (status IN ('open', 'closed')) DEFAULT 'open',
+        shift_number INTEGER DEFAULT 1,
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     ''');

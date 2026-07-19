@@ -241,11 +241,21 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
       return activeShift;
     }
 
+    // Get count of shifts started today to set shift_number
+    final countMaps = await db.rawQuery('''
+      SELECT COUNT(*) as count 
+      FROM shifts 
+      WHERE DATE(start_time, 'localtime') = DATE('now', 'localtime')
+    ''');
+    final shiftCount = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
+    final nextShiftNumber = shiftCount + 1;
+
     final id = await db.insert('shifts', {
       'user_id': intUserId,
       'starting_cash': startingCash,
       'ending_cash': 0.0,
       'status': 'open',
+      'shift_number': nextShiftNumber,
     });
 
     final List<Map<String, dynamic>> maps = await db.query(
@@ -278,7 +288,7 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
       {
         'ending_cash': endingCash,
         'status': 'closed',
-        'end_time': DateTime.now().toIso8601String(),
+        'end_time': DateTime.now().toUtc().toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [intId],
@@ -302,6 +312,7 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
     map['startingCash'] = (row['starting_cash'] as num).toDouble();
     map['endingCash'] = (row['ending_cash'] as num).toDouble();
     map['status'] = row['status'];
+    map['shiftNumber'] = row['shift_number'] ?? 1;
     return map;
   }
 }

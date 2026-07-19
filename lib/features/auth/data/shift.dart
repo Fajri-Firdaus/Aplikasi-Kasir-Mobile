@@ -13,6 +13,7 @@ abstract class Shift with _$Shift {
     @Default(0.0) double startingCash,
     @Default(0.0) double endingCash,
     @Default('open') String status,
+    @Default(1) int shiftNumber,
   }) = _Shift;
 
   factory Shift.fromJson(Map<String, dynamic> json) => _$ShiftFromJson(json);

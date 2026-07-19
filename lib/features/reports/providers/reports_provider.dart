@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/report_local_repository.dart';
+import '../../transactions/data/transaction_local_repository.dart';
 
 class ReportData {
   final double totalRevenue;
@@ -98,3 +100,90 @@ class ReportsNotifier extends Notifier<ReportData> {
     loadReportData(startDate, endDate);
   }
 }
+
+final activeShiftProvider = AsyncNotifierProvider<ActiveShiftNotifier, ShiftSummary?>(ActiveShiftNotifier.new);
+
+class ActiveShiftNotifier extends AsyncNotifier<ShiftSummary?> {
+  late final ReportLocalRepository _reportRepository;
+  late final TransactionLocalRepository _transactionRepository;
+
+  @override
+  FutureOr<ShiftSummary?> build() async {
+    _reportRepository = ref.watch(reportRepositoryProvider);
+    _transactionRepository = ref.watch(transactionRepositoryProvider);
+    return _reportRepository.getActiveShiftSummary();
+  }
+
+  Future<void> refreshShift() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => _reportRepository.getActiveShiftSummary());
+  }
+
+  Future<void> openNewShift(String userId, double startingCash) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await _transactionRepository.openShift(userId, startingCash);
+      // Also refresh financial reports so dashboard/reports update immediately
+      ref.read(reportsProvider.notifier).refresh();
+      return _reportRepository.getActiveShiftSummary();
+    });
+  }
+
+  Future<ShiftSummary?> closeActiveShift(double endingCash) async {
+    final current = state.value;
+    if (current == null) return null;
+
+    ShiftSummary? closedSummary;
+    state = const AsyncValue.loading();
+    
+    // We run the operations and update state inside guard
+    state = await AsyncValue.guard(() async {
+      await _transactionRepository.closeShift(current.shiftId, endingCash);
+      closedSummary = await _reportRepository.getShiftSummary(int.parse(current.shiftId));
+      
+      // Refresh general reports and history
+      ref.read(reportsProvider.notifier).refresh();
+      ref.read(closedShiftsProvider.notifier).refreshHistory();
+      ref.read(dailyReportsProvider.notifier).refreshHistory();
+      
+      return null; // Active shift is now closed (null)
+    });
+
+    return closedSummary;
+  }
+}
+
+final closedShiftsProvider = AsyncNotifierProvider<ClosedShiftsNotifier, List<ShiftSummary>>(ClosedShiftsNotifier.new);
+
+class ClosedShiftsNotifier extends AsyncNotifier<List<ShiftSummary>> {
+  late final ReportLocalRepository _reportRepository;
+
+  @override
+  FutureOr<List<ShiftSummary>> build() async {
+    _reportRepository = ref.watch(reportRepositoryProvider);
+    return _reportRepository.getClosedShifts();
+  }
+
+  Future<void> refreshHistory() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => _reportRepository.getClosedShifts());
+  }
+}
+
+final dailyReportsProvider = AsyncNotifierProvider<DailyReportsNotifier, List<DailyReportSummary>>(DailyReportsNotifier.new);
+
+class DailyReportsNotifier extends AsyncNotifier<List<DailyReportSummary>> {
+  late final ReportLocalRepository _reportRepository;
+
+  @override
+  FutureOr<List<DailyReportSummary>> build() async {
+    _reportRepository = ref.watch(reportRepositoryProvider);
+    return _reportRepository.getDailyReportsHistory();
+  }
+
+  Future<void> refreshHistory() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => _reportRepository.getDailyReportsHistory());
+  }
+}
+

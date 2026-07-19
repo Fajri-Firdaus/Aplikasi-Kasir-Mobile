@@ -76,8 +76,9 @@ Mencatat sesi kasir untuk audit saldo laci (Laporan X/Z).
 | `start_time` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 | `end_time` | TIMESTAMP | | |
 | `starting_cash`| REAL | DEFAULT 0.0 | Saldo awal laci |
-| `ending_cash` | REAL | DEFAULT 0.0 | Saldo akhir laci |
+| `ending_cash` | REAL | DEFAULT 0.0 | Saldo akhir laci (setoran) |
 | `status` | TEXT | CHECK IN ('open','closed') | DEFAULT 'open' |
+| `shift_number` | INTEGER | DEFAULT 1 | Urutan shift keberapa pada hari tersebut |
 
 ### 2.2 `transactions`
 Header transaksi. Mendukung pembatalan (*void*).

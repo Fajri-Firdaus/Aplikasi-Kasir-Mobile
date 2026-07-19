@@ -39,4 +39,31 @@ void main() {
     expect(reportData.startDate, start);
     expect(reportData.endDate, end);
   });
+
+  test('ActiveShiftNotifier manages shift lifecycle (open & close)', () async {
+    final container = createContainer();
+    final notifier = container.read(activeShiftProvider.notifier);
+
+    // 1. Initial state should be null
+    var activeShift = container.read(activeShiftProvider).value;
+    expect(activeShift, isNull);
+
+    // 2. Open new shift
+    await notifier.openNewShift('1', 250000.0);
+    activeShift = container.read(activeShiftProvider).value;
+    expect(activeShift, isNotNull);
+    expect(activeShift!.startingCash, 250000.0);
+    expect(activeShift.status, 'open');
+
+    // 3. Close active shift
+    final closedSummary = await notifier.closeActiveShift(300000.0);
+    expect(closedSummary, isNotNull);
+    expect(closedSummary!.endingCash, 300000.0);
+    expect(closedSummary.status, 'closed');
+    expect(closedSummary.discrepancy, 50000.0); // 300000 - (250000 + 0 sales) = 50000
+
+    // 4. State should be null again after closing
+    activeShift = container.read(activeShiftProvider).value;
+    expect(activeShift, isNull);
+  });
 }

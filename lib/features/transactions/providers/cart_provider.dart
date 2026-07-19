@@ -76,6 +76,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
 
     // Refresh reports data after successful checkout
     ref.read(reportsProvider.notifier).refresh();
+    ref.read(activeShiftProvider.notifier).refreshShift();
 
     // Refresh stocks locally in the productNotifierProvider
     for (final item in state) {

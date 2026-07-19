@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Shift {
 
- String get id; String get userId; String get startTime; String? get endTime; double get startingCash; double get endingCash; String get status;
+ String get id; String get userId; String get startTime; String? get endTime; double get startingCash; double get endingCash; String get status; int get shiftNumber;
 /// Create a copy of Shift
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $ShiftCopyWith<Shift> get copyWith => _$ShiftCopyWithImpl<Shift>(this as Shift, 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Shift&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&(identical(other.startingCash, startingCash) || other.startingCash == startingCash)&&(identical(other.endingCash, endingCash) || other.endingCash == endingCash)&&(identical(other.status, status) || other.status == status));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Shift&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&(identical(other.startingCash, startingCash) || other.startingCash == startingCash)&&(identical(other.endingCash, endingCash) || other.endingCash == endingCash)&&(identical(other.status, status) || other.status == status)&&(identical(other.shiftNumber, shiftNumber) || other.shiftNumber == shiftNumber));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,userId,startTime,endTime,startingCash,endingCash,status);
+int get hashCode => Object.hash(runtimeType,id,userId,startTime,endTime,startingCash,endingCash,status,shiftNumber);
 
 @override
 String toString() {
-  return 'Shift(id: $id, userId: $userId, startTime: $startTime, endTime: $endTime, startingCash: $startingCash, endingCash: $endingCash, status: $status)';
+  return 'Shift(id: $id, userId: $userId, startTime: $startTime, endTime: $endTime, startingCash: $startingCash, endingCash: $endingCash, status: $status, shiftNumber: $shiftNumber)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $ShiftCopyWith<$Res>  {
   factory $ShiftCopyWith(Shift value, $Res Function(Shift) _then) = _$ShiftCopyWithImpl;
 @useResult
 $Res call({
- String id, String userId, String startTime, String? endTime, double startingCash, double endingCash, String status
+ String id, String userId, String startTime, String? endTime, double startingCash, double endingCash, String status, int shiftNumber
 });
 
 
@@ -65,7 +65,7 @@ class _$ShiftCopyWithImpl<$Res>
 
 /// Create a copy of Shift
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? startTime = null,Object? endTime = freezed,Object? startingCash = null,Object? endingCash = null,Object? status = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? startTime = null,Object? endTime = freezed,Object? startingCash = null,Object? endingCash = null,Object? status = null,Object? shiftNumber = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
@@ -74,7 +74,8 @@ as String,endTime: freezed == endTime ? _self.endTime : endTime // ignore: cast_
 as String?,startingCash: null == startingCash ? _self.startingCash : startingCash // ignore: cast_nullable_to_non_nullable
 as double,endingCash: null == endingCash ? _self.endingCash : endingCash // ignore: cast_nullable_to_non_nullable
 as double,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as String,
+as String,shiftNumber: null == shiftNumber ? _self.shiftNumber : shiftNumber // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  String startTime,  String? endTime,  double startingCash,  double endingCash,  String status)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  String startTime,  String? endTime,  double startingCash,  double endingCash,  String status,  int shiftNumber)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Shift() when $default != null:
-return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.startingCash,_that.endingCash,_that.status);case _:
+return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.startingCash,_that.endingCash,_that.status,_that.shiftNumber);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.starti
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  String startTime,  String? endTime,  double startingCash,  double endingCash,  String status)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  String startTime,  String? endTime,  double startingCash,  double endingCash,  String status,  int shiftNumber)  $default,) {final _that = this;
 switch (_that) {
 case _Shift():
-return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.startingCash,_that.endingCash,_that.status);case _:
+return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.startingCash,_that.endingCash,_that.status,_that.shiftNumber);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.starti
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  String startTime,  String? endTime,  double startingCash,  double endingCash,  String status)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  String startTime,  String? endTime,  double startingCash,  double endingCash,  String status,  int shiftNumber)?  $default,) {final _that = this;
 switch (_that) {
 case _Shift() when $default != null:
-return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.startingCash,_that.endingCash,_that.status);case _:
+return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.startingCash,_that.endingCash,_that.status,_that.shiftNumber);case _:
   return null;
 
 }
@@ -215,7 +216,7 @@ return $default(_that.id,_that.userId,_that.startTime,_that.endTime,_that.starti
 @JsonSerializable()
 
 class _Shift implements Shift {
-  const _Shift({required this.id, required this.userId, required this.startTime, this.endTime, this.startingCash = 0.0, this.endingCash = 0.0, this.status = 'open'});
+  const _Shift({required this.id, required this.userId, required this.startTime, this.endTime, this.startingCash = 0.0, this.endingCash = 0.0, this.status = 'open', this.shiftNumber = 1});
   factory _Shift.fromJson(Map<String, dynamic> json) => _$ShiftFromJson(json);
 
 @override final  String id;
@@ -225,6 +226,7 @@ class _Shift implements Shift {
 @override@JsonKey() final  double startingCash;
 @override@JsonKey() final  double endingCash;
 @override@JsonKey() final  String status;
+@override@JsonKey() final  int shiftNumber;
 
 /// Create a copy of Shift
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +241,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Shift&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&(identical(other.startingCash, startingCash) || other.startingCash == startingCash)&&(identical(other.endingCash, endingCash) || other.endingCash == endingCash)&&(identical(other.status, status) || other.status == status));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Shift&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&(identical(other.startingCash, startingCash) || other.startingCash == startingCash)&&(identical(other.endingCash, endingCash) || other.endingCash == endingCash)&&(identical(other.status, status) || other.status == status)&&(identical(other.shiftNumber, shiftNumber) || other.shiftNumber == shiftNumber));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,userId,startTime,endTime,startingCash,endingCash,status);
+int get hashCode => Object.hash(runtimeType,id,userId,startTime,endTime,startingCash,endingCash,status,shiftNumber);
 
 @override
 String toString() {
-  return 'Shift(id: $id, userId: $userId, startTime: $startTime, endTime: $endTime, startingCash: $startingCash, endingCash: $endingCash, status: $status)';
+  return 'Shift(id: $id, userId: $userId, startTime: $startTime, endTime: $endTime, startingCash: $startingCash, endingCash: $endingCash, status: $status, shiftNumber: $shiftNumber)';
 }
 
 
@@ -259,7 +261,7 @@ abstract mixin class _$ShiftCopyWith<$Res> implements $ShiftCopyWith<$Res> {
   factory _$ShiftCopyWith(_Shift value, $Res Function(_Shift) _then) = __$ShiftCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String userId, String startTime, String? endTime, double startingCash, double endingCash, String status
+ String id, String userId, String startTime, String? endTime, double startingCash, double endingCash, String status, int shiftNumber
 });
 
 
@@ -276,7 +278,7 @@ class __$ShiftCopyWithImpl<$Res>
 
 /// Create a copy of Shift
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? startTime = null,Object? endTime = freezed,Object? startingCash = null,Object? endingCash = null,Object? status = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? startTime = null,Object? endTime = freezed,Object? startingCash = null,Object? endingCash = null,Object? status = null,Object? shiftNumber = null,}) {
   return _then(_Shift(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
@@ -285,7 +287,8 @@ as String,endTime: freezed == endTime ? _self.endTime : endTime // ignore: cast_
 as String?,startingCash: null == startingCash ? _self.startingCash : startingCash // ignore: cast_nullable_to_non_nullable
 as double,endingCash: null == endingCash ? _self.endingCash : endingCash // ignore: cast_nullable_to_non_nullable
 as double,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as String,
+as String,shiftNumber: null == shiftNumber ? _self.shiftNumber : shiftNumber // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

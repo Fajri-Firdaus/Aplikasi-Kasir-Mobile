@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../reports/providers/reports_provider.dart';
+import '../../../reports/data/report_local_repository.dart';
+import '../../../auth/providers/auth_provider.dart';
 
 class InventoryAlertsWidget extends ConsumerWidget {
   const InventoryAlertsWidget({super.key});
@@ -14,7 +16,7 @@ class InventoryAlertsWidget extends ConsumerWidget {
       children: [
         _buildLowStockCard(context, lowStockItems),
         const SizedBox(height: 12),
-        _buildShiftStatusCard(context),
+        _buildShiftStatusCard(context, ref),
       ],
     );
   }
@@ -152,60 +154,353 @@ class InventoryAlertsWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildShiftStatusCard(BuildContext context) {
-    // Static shift card - no active shift by default
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
-        ],
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  Widget _buildShiftStatusCard(BuildContext context, WidgetRef ref) {
+    final activeShiftAsync = ref.watch(activeShiftProvider);
+
+    return activeShiftAsync.when(
+      data: (shift) {
+        final hasActiveShift = shift != null;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDBEAFE),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.access_time, color: Color(0xFF2563EB), size: 20),
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: hasActiveShift ? const Color(0xFFDCFCE7) : const Color(0xFFDBEAFE),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      hasActiveShift ? Icons.check_circle_outline : Icons.access_time, 
+                      color: hasActiveShift ? const Color(0xFF16A34A) : const Color(0xFF2563EB), 
+                      size: 20
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Status Shift', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                        Text(
+                          hasActiveShift 
+                              ? 'Shift #${shift.shiftId} (Ke-${shift.shiftNumber}) Aktif (Kasir: ${shift.username})' 
+                              : 'Belum ada shift aktif', 
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              if (hasActiveShift) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Status Shift', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-                    Text('Belum ada shift aktif', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                    const Text('Saldo Laci Kas:', style: TextStyle(fontSize: 12, color: Color(0xFF4B5563))),
+                    Text(
+                      'Rp ${_formatCurrency(shift.expectedDrawerCash.toInt())}', 
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF111827))
+                    ),
                   ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (hasActiveShift) {
+                      _showCloseShiftDialog(context, ref, shift);
+                    } else {
+                      _showOpenShiftDialog(context, ref);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: hasActiveShift ? const Color(0xFFDC2626) : const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    hasActiveShift ? 'Tutup / Ganti Shift' : 'Mulai Shift', 
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: const Text('Mulai Shift', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (err, stack) => Text('Gagal memuat status shift: $err', style: const TextStyle(color: Colors.red, fontSize: 11)),
+    );
+  }
+
+  void _showOpenShiftDialog(BuildContext context, WidgetRef ref) {
+    final TextEditingController startingCashController = TextEditingController(text: '500000');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Buka Shift Kasir Baru', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Silakan masukkan saldo awal laci kas (Starting Cash) untuk memulai shift.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), height: 1.4),
             ),
+            const SizedBox(height: 16),
+            const Text(
+              'Saldo Awal Laci Kas',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: startingCashController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                prefixText: 'Rp ',
+                hintText: '0',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final startingCash = double.tryParse(startingCashController.text) ?? 0.0;
+              final currentUser = ref.read(currentUserProvider).value;
+              final userId = currentUser?.id ?? '1';
+              Navigator.pop(ctx);
+              try {
+                await ref.read(activeShiftProvider.notifier).openNewShift(userId, startingCash);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Shift kasir berhasil dibuka.'),
+                    backgroundColor: Color(0xFF16A34A),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gagal membuka shift: $e'),
+                    backgroundColor: const Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Buka Shift'),
           ),
         ],
       ),
     );
+  }
+
+  void _showCloseShiftDialog(BuildContext context, WidgetRef ref, ShiftSummary activeShift) {
+    final TextEditingController actualCashController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Tutup / Ganti Shift Kasir', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Shift #${activeShift.shiftId} aktif (${activeShift.username}). Masukkan jumlah uang fisik setoran di laci kas.',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280), height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Jumlah Uang Fisik Setoran di Laci',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: actualCashController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                prefixText: 'Rp ',
+                hintText: '0',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final text = actualCashController.text.trim();
+              if (text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Silakan masukkan nominal uang fisik setoran.'),
+                    backgroundColor: Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              final actualCash = double.tryParse(text);
+              if (actualCash == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nominal harus berupa angka.'),
+                    backgroundColor: Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              
+              // Prompt option
+              _promptCloseOptionDialog(context, ref, activeShift, actualCash);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Lanjut'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _promptCloseOptionDialog(BuildContext context, WidgetRef ref, ShiftSummary shift, double actualCash) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Pilih Opsi Penutupan', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Pilih "Ganti Shift" untuk melakukan handover kasir, atau pilih "Tutup Hari" jika seluruh aktivitas penjualan hari ini telah berakhir.',
+          style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), height: 1.4),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final closed = await ref.read(activeShiftProvider.notifier).closeActiveShift(actualCash);
+                if (!context.mounted) return;
+                if (closed != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Shift #${closed.shiftId} berhasil ditutup. Selisih: Rp ${closed.discrepancy.toInt()}'),
+                      backgroundColor: const Color(0xFF16A34A),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gagal menutup shift: $e'),
+                    backgroundColor: const Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4F46E5),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Ganti Shift'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final closed = await ref.read(activeShiftProvider.notifier).closeActiveShift(actualCash);
+                if (closed != null) {
+                  final todayStr = DateTime.now().toLocal().toString().substring(0, 10);
+                  final daily = await ref.read(reportRepositoryProvider).getDailyReportSummary(todayStr);
+                  if (!context.mounted) return;
+                  if (daily != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Tutup Hari Berhasil! Total Penjualan: Rp ${(daily.totalSalesCash + daily.totalSalesNonCash).toInt()}'),
+                        backgroundColor: const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gagal menutup hari: $e'),
+                    backgroundColor: const Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Tutup Hari'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatCurrency(int val) {
+    return val.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
   }
 }

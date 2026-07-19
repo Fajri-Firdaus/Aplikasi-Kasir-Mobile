@@ -14,6 +14,7 @@ _Shift _$ShiftFromJson(Map<String, dynamic> json) => _Shift(
   startingCash: (json['startingCash'] as num?)?.toDouble() ?? 0.0,
   endingCash: (json['endingCash'] as num?)?.toDouble() ?? 0.0,
   status: json['status'] as String? ?? 'open',
+  shiftNumber: (json['shiftNumber'] as num?)?.toInt() ?? 1,
 );
 
 Map<String, dynamic> _$ShiftToJson(_Shift instance) => <String, dynamic>{
@@ -24,4 +25,5 @@ Map<String, dynamic> _$ShiftToJson(_Shift instance) => <String, dynamic>{
   'startingCash': instance.startingCash,
   'endingCash': instance.endingCash,
   'status': instance.status,
+  'shiftNumber': instance.shiftNumber,
 };
