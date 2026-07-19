@@ -60,10 +60,10 @@ class CartNotifier extends Notifier<List<CartItem>> {
     final repository = ref.read(transactionRepositoryProvider);
     final productNotifier = ref.read(productNotifierProvider.notifier);
 
-    // Get active shift or open a dummy one if none is active (e.g. for user ID 1)
-    var activeShift = await repository.getActiveShift();
+    // Ensure active shift exists
+    final activeShift = await repository.getActiveShift();
     if (activeShift == null) {
-      activeShift = await repository.openShift('1', 500000.0);
+      throw Exception('Shift harus dibuka terlebih dahulu sebelum melakukan transaksi.');
     }
 
     await repository.checkout(

@@ -5,6 +5,8 @@ import 'package:mobile_pos_flutter/features/transactions/presentation/transactio
 import 'package:mobile_pos_flutter/features/transactions/providers/cart_provider.dart';
 import 'package:mobile_pos_flutter/features/products/providers/product_provider.dart';
 import 'package:mobile_pos_flutter/features/products/data/product.dart';
+import 'package:mobile_pos_flutter/features/reports/providers/reports_provider.dart';
+import 'package:mobile_pos_flutter/features/reports/data/report_local_repository.dart';
 
 class MockProductNotifier extends ProductNotifier {
   final List<Product> _mockProducts;
@@ -21,6 +23,16 @@ class MockProductNotifier extends ProductNotifier {
   }
 }
 
+class MockActiveShiftNotifier extends ActiveShiftNotifier {
+  final ShiftSummary? _mockShift;
+  MockActiveShiftNotifier(this._mockShift);
+
+  @override
+  Future<ShiftSummary?> build() async {
+    return _mockShift;
+  }
+}
+
 void main() {
   final mockProducts = [
     const Product(
@@ -34,11 +46,29 @@ void main() {
     ),
   ];
 
+  const mockShift = ShiftSummary(
+    shiftId: '1',
+    userId: '1',
+    username: 'admin',
+    startTime: '2026-07-19T00:00:00Z',
+    startingCash: 500000.0,
+    endingCash: 0.0,
+    totalSalesCash: 0.0,
+    totalSalesNonCash: 0.0,
+    totalSalesVoid: 0.0,
+    expectedDrawerCash: 500000.0,
+    discrepancy: 0.0,
+    totalTransactions: 0,
+    status: 'open',
+    shiftNumber: 1,
+  );
+
   testWidgets('TransactionPage cart sheet allows incrementing and decrementing items', (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           productNotifierProvider.overrideWith(() => MockProductNotifier(mockProducts)),
+          activeShiftProvider.overrideWith(() => MockActiveShiftNotifier(mockShift)),
         ],
         child: const MaterialApp(
           home: TransactionPage(),

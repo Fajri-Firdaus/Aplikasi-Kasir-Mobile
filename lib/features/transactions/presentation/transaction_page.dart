@@ -5,6 +5,7 @@ import '../../products/providers/product_provider.dart';
 import '../../products/data/product.dart';
 import '../providers/cart_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../reports/providers/reports_provider.dart';
 
 class TransactionPage extends ConsumerStatefulWidget {
   const TransactionPage({super.key});
@@ -28,6 +29,7 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
     final products = ref.watch(productsProvider);
     final cartItems = ref.watch(cartProvider);
     final cartNotifier = ref.read(cartProvider.notifier);
+    final activeShiftAsync = ref.watch(activeShiftProvider);
 
     final categories = ['Semua', ...products.map((p) => p.category).toSet().toList()];
     final filtered = products.where((p) {
@@ -41,152 +43,213 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Row(
+        child: activeShiftAsync.when(
+          data: (shift) {
+            if (shift == null) {
+              return _buildNoActiveShiftView();
+            }
+            return Column(
+              children: [
+                // Header
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.point_of_sale, color: Color(0xFF2563EB), size: 22),
+                            const SizedBox(width: 8),
+                            const Text('Transaksi Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                          ],
+                        ),
+                      ),
+                      if (cartItems.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () => _showClearCartDialog(context, cartNotifier),
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          label: const Text('Kosongkan'),
+                          style: TextButton.styleFrom(foregroundColor: AppColors.destructive),
+                        ),
+                    ],
+                  ),
+                ),
+                // Search bar
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (v) => setState(() => _searchQuery = v),
+                    decoration: InputDecoration(
+                      hintText: 'Cari produk...',
+                      prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
+                      filled: true,
+                      fillColor: const Color(0xFFF3F4F6),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                // Category chips
+                Container(
+                  color: Colors.white,
+                  height: 44,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: categories.length,
+                    itemBuilder: (_, i) {
+                      final cat = categories[i];
+                      final active = cat == _selectedCategory;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(cat),
+                          selected: active,
+                          onSelected: (_) => setState(() => _selectedCategory = cat),
+                          selectedColor: const Color(0xFF2563EB),
+                          backgroundColor: const Color(0xFFF3F4F6),
+                          labelStyle: TextStyle(color: active ? Colors.white : const Color(0xFF374151), fontWeight: FontWeight.w600, fontSize: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Product grid
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(child: Text('Produk tidak ditemukan', style: TextStyle(color: Color(0xFF6B7280))))
+                      : GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.85,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                          ),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) => _ProductCard(
+                            product: filtered[i],
+                            onAdd: () => ref.read(cartProvider.notifier).addProduct(filtered[i]),
+                          ),
+                        ),
+                ),
+                // Cart footer
+                if (cartItems.isNotEmpty)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, -4))],
+                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Column(
                       children: [
-                        const Icon(Icons.point_of_sale, color: Color(0xFF2563EB), size: 22),
-                        const SizedBox(width: 8),
-                        const Text('Transaksi Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('${cartItems.length} item', style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+                            Text(
+                              'Total: Rp ${_formatCurrency(totalAmount.toInt())}',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _showCartSheet(context, ref),
+                                icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                                label: const Text('Keranjang'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF2563EB),
+                                  side: const BorderSide(color: Color(0xFF2563EB)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                onPressed: () => _showPaymentDialog(context, ref, totalAmount),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: Text('Bayar - Rp ${_formatCurrency(totalAmount.toInt())}',
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                  if (cartItems.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () => _showClearCartDialog(context, cartNotifier),
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Kosongkan'),
-                      style: TextButton.styleFrom(foregroundColor: AppColors.destructive),
-                    ),
-                ],
-              ),
-            ),
-            // Search bar
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Gagal memuat status shift: $err')),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoActiveShiftView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
             Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => setState(() => _searchQuery = v),
-                decoration: InputDecoration(
-                  hintText: 'Cari produk...',
-                  prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
-                  filled: true,
-                  fillColor: const Color(0xFFF3F4F6),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              width: 80,
+              height: 80,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEE2E2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.lock_clock_outlined,
+                color: Color(0xFFDC2626),
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Shift Belum Dibuka',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Anda harus memulai shift kasir terlebih dahulu sebelum dapat melakukan transaksi penjualan.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.5),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/dashboard'),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Kembali ke Dashboard'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ),
-            // Category chips
-            Container(
-              color: Colors.white,
-              height: 44,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: categories.length,
-                itemBuilder: (_, i) {
-                  final cat = categories[i];
-                  final active = cat == _selectedCategory;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(cat),
-                      selected: active,
-                      onSelected: (_) => setState(() => _selectedCategory = cat),
-                      selectedColor: const Color(0xFF2563EB),
-                      backgroundColor: const Color(0xFFF3F4F6),
-                      labelStyle: TextStyle(color: active ? Colors.white : const Color(0xFF374151), fontWeight: FontWeight.w600, fontSize: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Product grid
-            Expanded(
-              child: filtered.isEmpty
-                  ? const Center(child: Text('Produk tidak ditemukan', style: TextStyle(color: Color(0xFF6B7280))))
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(12),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.85,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
-                      itemCount: filtered.length,
-                      itemBuilder: (_, i) => _ProductCard(
-                        product: filtered[i],
-                        onAdd: () => ref.read(cartProvider.notifier).addProduct(filtered[i]),
-                      ),
-                    ),
-            ),
-            // Cart footer
-            if (cartItems.isNotEmpty)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, -4))],
-                ),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${cartItems.length} item', style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-                        Text(
-                          'Total: Rp ${_formatCurrency(totalAmount.toInt())}',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _showCartSheet(context, ref),
-                            icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                            label: const Text('Keranjang'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF2563EB),
-                              side: const BorderSide(color: Color(0xFF2563EB)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton(
-                            onPressed: () => _showPaymentDialog(context, ref, totalAmount),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2563EB),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: Text('Bayar - Rp ${_formatCurrency(totalAmount.toInt())}',
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
           ],
         ),
       ),

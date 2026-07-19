@@ -13,3 +13,11 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-19 20:19:12
+Masalah : Buat proses transaksi tidak bisa dilakukan sebelum user memulai shift secara manual
+Perbaikan :
+- Mengunci fitur transaksi jika user belum memulai shift
+- Setelah memulai shift user bisa melakukan transaksi
+
+==========
+

@@ -78,6 +78,9 @@ void main() {
     final productNotifier = container.read(productNotifierProvider.notifier);
     await productNotifier.loadProducts();
     
+    // Buka shift terlebih dahulu agar checkout bisa berjalan
+    await container.read(transactionRepositoryProvider).openShift('1', 500000.0);
+    
     // Get product from notifier (which matches SQLite seeded product with ID 1, stock 50)
     final initialProducts = container.read(productNotifierProvider);
     final initialProduct1 = initialProducts.firstWhere((p) => p.id == '1');
