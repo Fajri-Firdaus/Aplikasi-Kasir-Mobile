@@ -18,6 +18,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   bool _showDateFilter = false;
   bool _showExportMenu = false;
   String _historyMode = 'shift';
+  String _selectedCashier = 'Semua Kasir';
   late final PageController _pageController;
   late final ScrollController _tabScrollController;
   late final TextEditingController _startingCashController;
@@ -555,6 +556,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               items: const [
                 DropdownMenuItem(value: 'shift', child: Text('Berdasarkan Shift', style: TextStyle(fontSize: 12))),
                 DropdownMenuItem(value: 'day', child: Text('Berdasarkan Hari', style: TextStyle(fontSize: 12))),
+                DropdownMenuItem(value: 'cashier', child: Text('Berdasarkan Nama Kasir', style: TextStyle(fontSize: 12))),
               ],
               onChanged: (val) {
                 if (val != null) {
@@ -568,11 +570,57 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             ),
           ],
         ),
+        if (_historyMode == 'cashier') ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Pilih Kasir:', style: TextStyle(fontSize: 12, color: Color(0xFF4B5563), fontWeight: FontWeight.bold)),
+              closedShiftsAsync.when(
+                data: (shifts) {
+                  final uniqueCashiers = ['Semua Kasir'];
+                  for (final s in shifts) {
+                    if (!uniqueCashiers.contains(s.username)) {
+                      uniqueCashiers.add(s.username);
+                    }
+                  }
+                  if (!uniqueCashiers.contains(_selectedCashier)) {
+                    _selectedCashier = 'Semua Kasir';
+                  }
+                  return DropdownButton<String>(
+                    value: _selectedCashier,
+                    items: uniqueCashiers.map((name) {
+                      return DropdownMenuItem<String>(
+                        value: name,
+                        child: Text(name, style: const TextStyle(fontSize: 12)),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedCashier = val;
+                        });
+                      }
+                    },
+                    underline: const SizedBox(),
+                    icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+                  );
+                },
+                loading: () => const SizedBox(),
+                error: (e, s) => const SizedBox(),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
-        _historyMode == 'shift'
+        _historyMode == 'shift' || _historyMode == 'cashier'
             ? closedShiftsAsync.when(
                 data: (shifts) {
-                  if (shifts.isEmpty) {
+                  final filteredShifts = _historyMode == 'cashier' && _selectedCashier != 'Semua Kasir'
+                      ? shifts.where((s) => s.username == _selectedCashier).toList()
+                      : shifts;
+
+                  if (filteredShifts.isEmpty) {
                     return Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(24),
@@ -581,17 +629,19 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: const Color(0xFFE5E7EB)),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'Belum ada riwayat shift yang ditutup',
-                          style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                          _historyMode == 'cashier' && _selectedCashier != 'Semua Kasir'
+                              ? 'Belum ada riwayat shift untuk kasir $_selectedCashier'
+                              : 'Belum ada riwayat shift yang ditutup',
+                          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
                         ),
                       ),
                     );
                   }
 
                   return Column(
-                    children: shifts.map((s) {
+                    children: filteredShifts.map((s) {
                       DateTime? parsedEnd = DateTime.tryParse(s.endTime ?? '');
                       if (parsedEnd != null) {
                         if (!parsedEnd.isUtc) parsedEnd = DateTime.parse('${s.endTime!}Z');

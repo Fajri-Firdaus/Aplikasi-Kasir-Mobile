@@ -276,7 +276,7 @@ class ReportLocalRepository {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
-          u.username,
+          u.full_name AS username,
           COUNT(DISTINCT t.id) AS total_transaksi_ditangani,
           SUM(t.total_amount) AS total_nominal_penjualan
       FROM transactions t
@@ -311,11 +311,11 @@ class ReportLocalRepository {
 
     final List<Map<String, dynamic>> userMaps = await db.query(
       'users',
-      columns: ['username'],
+      columns: ['full_name'],
       where: 'id = ?',
       whereArgs: [shiftMap['user_id']],
     );
-    final username = userMaps.isNotEmpty ? (userMaps.first['username'] as String? ?? 'Unknown') : 'Unknown';
+    final username = userMaps.isNotEmpty ? (userMaps.first['full_name'] as String? ?? 'Unknown') : 'Unknown';
 
     final List<Map<String, dynamic>> cashSalesMaps = await db.rawQuery('''
       SELECT COALESCE(SUM(total_amount), 0.0) AS total

@@ -21,3 +21,11 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-19 20:36:26
+Masalah : Pada menu laporan tab x/z report, buat riwayat laporan bisa difilter berdasarkan shift, harian, atau nama kasir. Dan mengubah penggunaan nama kasir yang dari username menjadi full_name
+Perbaikan :
+- Membuat filter berdasarkan nama (full_name)
+- Mengubah seluruh sistem shift agar mengambil data field full_name bukan username
+
+===========
+
