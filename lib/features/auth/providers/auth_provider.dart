@@ -45,17 +45,24 @@ class AuthNotifier extends Notifier<bool> {
     state = false;
   }
 
-  Future<void> signUp(String username, String password, {String? fullName}) async {
+  Future<void> signUp(String username, String password, {String? fullName, String? email}) async {
     final existingUser = await _userRepository.getByUsername(username);
     if (existingUser != null) {
       throw Exception('Username sudah terdaftar.');
+    }
+
+    if (email != null && email.trim().isNotEmpty) {
+      final existingEmail = await _userRepository.getByEmail(email.trim());
+      if (existingEmail != null) {
+        throw Exception('Email sudah terdaftar.');
+      }
     }
 
     final newUser = AppUser(
       id: '', // Will be assigned by database auto-increment
       name: (fullName != null && fullName.trim().isNotEmpty) ? fullName.trim() : username.trim(),
       username: username.trim(),
-      email: '${username.trim()}@example.com',
+      email: (email != null && email.trim().isNotEmpty) ? email.trim() : '${username.trim()}@example.com',
       role: 'admin', // Default role for self registration
       isActive: true,
       createdAt: DateTime.now().toIso8601String(),

@@ -22,6 +22,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   // Sign up fields
   final _signUpFullNameController = TextEditingController();
+  final _signUpEmailController = TextEditingController();
   final _signUpUsernameController = TextEditingController();
   final _signUpPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -34,6 +35,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     _usernameController.dispose();
     _passwordController.dispose();
     _signUpFullNameController.dispose();
+    _signUpEmailController.dispose();
     _signUpUsernameController.dispose();
     _signUpPasswordController.dispose();
     _confirmPasswordController.dispose();
@@ -43,7 +45,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _handleLogin() async {
     setState(() { _error = ''; });
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      setState(() => _error = 'Username dan password harus diisi');
+      setState(() => _error = 'Username/Email dan password harus diisi');
       return;
     }
     setState(() => _isLoading = true);
@@ -54,7 +56,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           );
       if (mounted) context.go('/dashboard');
     } catch (e) {
-      setState(() => _error = 'Username atau password salah');
+      setState(() => _error = 'Username/Email atau password salah');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -63,6 +65,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _handleSignUp() async {
     setState(() { _error = ''; });
     if (_signUpFullNameController.text.trim().isEmpty ||
+        _signUpEmailController.text.trim().isEmpty ||
         _signUpUsernameController.text.trim().isEmpty ||
         _signUpPasswordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
@@ -83,11 +86,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             _signUpUsernameController.text.trim(),
             _signUpPasswordController.text,
             fullName: _signUpFullNameController.text.trim(),
+            email: _signUpEmailController.text.trim(),
           );
       if (mounted) {
         setState(() {
           _isSignUp = false;
           _signUpFullNameController.clear();
+          _signUpEmailController.clear();
           _signUpUsernameController.clear();
           _signUpPasswordController.clear();
           _confirmPasswordController.clear();
@@ -163,9 +168,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
         ),
         const SizedBox(height: 32),
-        _buildLabel('Username'),
+        _buildLabel('Username / Email'),
         const SizedBox(height: 8),
-        _buildBorderedInput(controller: _usernameController, hint: 'admin'),
+        _buildBorderedInput(controller: _usernameController, hint: 'admin atau admin@example.com'),
         const SizedBox(height: 20),
         _buildLabel('Password'),
         const SizedBox(height: 8),
@@ -264,9 +269,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
         ),
         const SizedBox(height: 28),
-        _buildLabel('Full Name'),
+        _buildLabel('Nama Lengkap (Full Name)'),
         const SizedBox(height: 8),
         _buildBorderedInput(controller: _signUpFullNameController, hint: 'John Doe'),
+        const SizedBox(height: 16),
+        _buildLabel('Email'),
+        const SizedBox(height: 8),
+        _buildBorderedInput(controller: _signUpEmailController, hint: 'john.doe@example.com'),
         const SizedBox(height: 16),
         _buildLabel('Username'),
         const SizedBox(height: 8),

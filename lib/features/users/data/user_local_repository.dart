@@ -113,14 +113,14 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
     );
   }
 
-  Future<AppUser?> authenticate(String username, String password) async {
+  Future<AppUser?> authenticate(String usernameOrEmail, String password) async {
     final db = await _dbService.database;
     final hashedPassword = _hash(password);
 
     final List<Map<String, dynamic>> maps = await db.query(
       'users',
-      where: 'username = ? AND password = ?',
-      whereArgs: [username, hashedPassword],
+      where: '(username = ? OR email = ?) AND password = ?',
+      whereArgs: [usernameOrEmail.trim(), usernameOrEmail.trim(), hashedPassword],
     );
 
     if (maps.isEmpty) return null;
@@ -133,6 +133,18 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
       'users',
       where: 'username = ?',
       whereArgs: [username.trim()],
+    );
+
+    if (maps.isEmpty) return null;
+    return _mapRowToUser(maps.first);
+  }
+
+  Future<AppUser?> getByEmail(String email) async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email.trim()],
     );
 
     if (maps.isEmpty) return null;

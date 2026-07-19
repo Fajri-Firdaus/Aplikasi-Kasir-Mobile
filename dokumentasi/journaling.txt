@@ -36,3 +36,11 @@ Perbaikan :
 
 ===========
 
+Datetime : 2026-07-19 21:07:57
+Masalah : Menambahkan form email pada menu sign up
+Perbaikan :
+- Menambahkan form email di menu sign up pada file login_page.dart
+- Menambahkan cara login dengan email pada menu login di file login_page.dart
+
+==========
+
