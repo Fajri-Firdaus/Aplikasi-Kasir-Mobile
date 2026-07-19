@@ -21,6 +21,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _showPassword = false;
 
   // Sign up fields
+  final _signUpFullNameController = TextEditingController();
   final _signUpUsernameController = TextEditingController();
   final _signUpPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -32,6 +33,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _signUpFullNameController.dispose();
     _signUpUsernameController.dispose();
     _signUpPasswordController.dispose();
     _confirmPasswordController.dispose();
@@ -60,7 +62,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _handleSignUp() async {
     setState(() { _error = ''; });
-    if (_signUpUsernameController.text.trim().isEmpty ||
+    if (_signUpFullNameController.text.trim().isEmpty ||
+        _signUpUsernameController.text.trim().isEmpty ||
         _signUpPasswordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
       setState(() => _error = 'Semua field harus diisi');
@@ -79,10 +82,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       await ref.read(authProvider.notifier).signUp(
             _signUpUsernameController.text.trim(),
             _signUpPasswordController.text,
+            fullName: _signUpFullNameController.text.trim(),
           );
       if (mounted) {
         setState(() {
           _isSignUp = false;
+          _signUpFullNameController.clear();
           _signUpUsernameController.clear();
           _signUpPasswordController.clear();
           _confirmPasswordController.clear();
@@ -259,6 +264,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
         ),
         const SizedBox(height: 28),
+        _buildLabel('Full Name'),
+        const SizedBox(height: 8),
+        _buildBorderedInput(controller: _signUpFullNameController, hint: 'John Doe'),
+        const SizedBox(height: 16),
         _buildLabel('Username'),
         const SizedBox(height: 8),
         _buildBorderedInput(controller: _signUpUsernameController, hint: 'johndoe'),

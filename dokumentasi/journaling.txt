@@ -29,3 +29,10 @@ Perbaikan :
 
 ===========
 
+Datetime : 2026-07-19 20:55:52
+Masalah : pada menu sign up tambahkan form untuk mengisi field full_name
+Perbaikan :
+- Menambahkan field Full Name di page sign up di file login_page.dart
+
+===========
+
