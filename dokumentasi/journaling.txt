@@ -6,3 +6,10 @@
 
 ==========
 
+Datetime : 2026-07-19 20:11:16
+Masalah : Mengubah format judul history menjadi shift keberapa dan tanggal berapa dan kasirnya siapa, buat sederhana tapi mudah dikenali dari judul
+Perbaikan :
+- format diubah menjadi tanggal tutup kasir - shift ke X - username kasir
+
+==========
+

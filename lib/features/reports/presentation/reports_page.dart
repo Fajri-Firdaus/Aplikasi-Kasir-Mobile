@@ -600,6 +600,9 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       final endStr = parsedEnd != null 
                           ? "${parsedEnd.day.toString().padLeft(2, '0')}/${parsedEnd.month.toString().padLeft(2, '0')}/${parsedEnd.year} ${parsedEnd.hour.toString().padLeft(2, '0')}:${parsedEnd.minute.toString().padLeft(2, '0')}"
                           : "-";
+                      final dateOnlyStr = parsedEnd != null 
+                          ? "${parsedEnd.day.toString().padLeft(2, '0')}/${parsedEnd.month.toString().padLeft(2, '0')}/${parsedEnd.year}"
+                          : "-";
 
                       final totalSales = s.totalSalesCash + s.totalSalesNonCash;
 
@@ -623,7 +626,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                             child: const Icon(Icons.assignment_turned_in_outlined, color: Color(0xFF4B5563)),
                           ),
                           title: Text(
-                            'Shift #${s.shiftId} (Ke-${s.shiftNumber}) - Kasir: ${s.username}',
+                            '$dateOnlyStr - Shift Ke-${s.shiftNumber} - ${s.username}',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF111827)),
                           ),
                           subtitle: Padding(
