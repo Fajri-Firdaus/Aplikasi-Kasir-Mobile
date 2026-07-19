@@ -507,7 +507,6 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              height: 38,
               child: ElevatedButton(
                 onPressed: () async {
                   final name = _customerNameController.text.trim();
@@ -537,8 +536,9 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                   backgroundColor: const Color(0xFF2563EB),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Text('Simpan & Pilih', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: const Text('Simpan & Pilih', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -704,38 +704,49 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                       SizedBox(height: 12),
                       Text('Keranjang kosong', style: TextStyle(color: Color(0xFF6B7280))),
                     ]))
-                  : ListView.separated(
+                  : ListView.builder(
                       controller: controller,
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: cartItems.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
+                      itemCount: cartItems.length + 1,
                       itemBuilder: (_, i) {
+                        if (i == cartItems.length) {
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: _buildCustomerSection(),
+                          );
+                        }
+
                         final item = cartItems[i];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                                  Text('Rp ${widget.formatCurrency(item.product.price.toInt())}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
-                                ]),
+                        return Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                      Text('Rp ${widget.formatCurrency(item.product.price.toInt())}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                                    ]),
+                                  ),
+                                  Row(children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline, color: Color(0xFF2563EB)),
+                                      onPressed: () => notifier.updateQuantity(item.product.id, item.quantity - 1),
+                                    ),
+                                    Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle_outline, color: Color(0xFF2563EB)),
+                                      onPressed: () => notifier.updateQuantity(item.product.id, item.quantity + 1),
+                                    ),
+                                  ]),
+                                  Text('Rp ${widget.formatCurrency(item.totalPrice.toInt())}',
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF111827))),
+                                ],
                               ),
-                              Row(children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline, color: Color(0xFF2563EB)),
-                                  onPressed: () => notifier.updateQuantity(item.product.id, item.quantity - 1),
-                                ),
-                                Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                                IconButton(
-                                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFF2563EB)),
-                                  onPressed: () => notifier.updateQuantity(item.product.id, item.quantity + 1),
-                                ),
-                              ]),
-                              Text('Rp ${widget.formatCurrency(item.totalPrice.toInt())}',
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF111827))),
-                            ],
-                          ),
+                            ),
+                            const Divider(height: 1, indent: 16, endIndent: 16),
+                          ],
                         );
                       },
                     ),
@@ -747,8 +758,6 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, -4))],
               ),
               child: Column(children: [
-                _buildCustomerSection(),
-                const Divider(height: 16),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   Text('Rp ${widget.formatCurrency(notifier.totalAmount.toInt())}',

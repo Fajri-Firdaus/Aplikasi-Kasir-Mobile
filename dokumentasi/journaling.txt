@@ -61,3 +61,11 @@ Perbaikan :
 
 ===========
 
+Datetime : 2026-07-19 21:46:27
+Masalah : Di menu kerangjang pada saat menginput pelanggan baru terjadi "bottom overflowed by 28 pixels" dan teks pada tombolnya terpotong", itu juga terjadi saat sedang mencari pelanggan 
+Perbaikan :
+- Memindahkan form pelanggan ke dalam scrollable listview
+- Memperbaiki teks tombol yang terpotong
+
+============
+
