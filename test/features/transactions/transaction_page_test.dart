@@ -7,6 +7,9 @@ import 'package:mobile_pos_flutter/features/products/providers/product_provider.
 import 'package:mobile_pos_flutter/features/products/data/product.dart';
 import 'package:mobile_pos_flutter/features/reports/providers/reports_provider.dart';
 import 'package:mobile_pos_flutter/features/reports/data/report_local_repository.dart';
+import 'package:mobile_pos_flutter/features/customers/providers/customer_provider.dart';
+import 'package:mobile_pos_flutter/features/customers/data/customer.dart';
+import 'dart:async';
 
 class MockProductNotifier extends ProductNotifier {
   final List<Product> _mockProducts;
@@ -30,6 +33,34 @@ class MockActiveShiftNotifier extends ActiveShiftNotifier {
   @override
   Future<ShiftSummary?> build() async {
     return _mockShift;
+  }
+}
+
+class MockCustomerNotifier extends CustomerNotifier {
+  final List<Customer> _mockCustomers;
+  MockCustomerNotifier(this._mockCustomers);
+
+  @override
+  FutureOr<List<Customer>> build() async {
+    return _mockCustomers;
+  }
+
+  @override
+  Future<void> refresh() async {
+    state = AsyncValue.data(_mockCustomers);
+  }
+
+  @override
+  Future<Customer> addCustomer(String name, String phone) async {
+    final customer = Customer(
+      id: (_mockCustomers.length + 1).toString(),
+      name: name,
+      phone: phone,
+      createdAt: DateTime.now().toIso8601String(),
+    );
+    _mockCustomers.add(customer);
+    state = AsyncValue.data(List.from(_mockCustomers));
+    return customer;
   }
 }
 
@@ -69,6 +100,7 @@ void main() {
         overrides: [
           productNotifierProvider.overrideWith(() => MockProductNotifier(mockProducts)),
           activeShiftProvider.overrideWith(() => MockActiveShiftNotifier(mockShift)),
+          customerProvider.overrideWith(() => MockCustomerNotifier([])),
         ],
         child: const MaterialApp(
           home: TransactionPage(),

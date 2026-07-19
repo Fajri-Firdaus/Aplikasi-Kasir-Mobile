@@ -51,3 +51,13 @@ Perbaikan :
 
 ===========
 
+Datetime : 2026-07-19 21:34:38
+Masalah : Menambahkan form pelanggan yang berisi nama pelanggan dan nomor hp pelanggan di menu keranjang pada saat transaki (buat agar ada menu dropdown dan pencarian agar kasir bisa mencari pelanggan yang sudah tercatat maupun menambahkan pelanggan baru), pastikan terhubung ke database.
+Perbaikan :
+- Pembuatan model data dan repository baru, (customer.dart) dan (customer_repository.dart)
+- Pengelolaan state management (riverpod) di file customer_provider.dart
+- Pembaruan logika checkout dan database di file cart_provider.dart
+- Implementasi UI form dan pencarian pelanggan pada keranjang
+
+===========
+

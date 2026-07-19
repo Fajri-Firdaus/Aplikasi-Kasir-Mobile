@@ -56,6 +56,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
   Future<void> checkout({
     required String paymentMethod,
     required double cashReceived,
+    String? customerId,
   }) async {
     final repository = ref.read(transactionRepositoryProvider);
     final productNotifier = ref.read(productNotifierProvider.notifier);
@@ -68,6 +69,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
 
     await repository.checkout(
       shiftId: activeShift.id,
+      customerId: customerId,
       totalAmount: totalAmount,
       paymentMethod: paymentMethod,
       cashReceived: cashReceived,

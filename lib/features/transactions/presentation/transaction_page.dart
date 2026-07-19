@@ -6,6 +6,8 @@ import '../../products/data/product.dart';
 import '../providers/cart_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../reports/providers/reports_provider.dart';
+import '../../customers/providers/customer_provider.dart';
+import '../../customers/data/customer.dart';
 
 class TransactionPage extends ConsumerStatefulWidget {
   const TransactionPage({super.key});
@@ -178,7 +180,7 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
                             Expanded(
                               flex: 2,
                               child: ElevatedButton(
-                                onPressed: () => _showPaymentDialog(context, ref, totalAmount),
+                                onPressed: () => _showPaymentDialog(context, ref, totalAmount, null),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF2563EB),
                                   foregroundColor: Colors.white,
@@ -283,14 +285,14 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _CartSheet(formatCurrency: _formatCurrency, onCheckout: (total) {
+      builder: (_) => _CartSheet(formatCurrency: _formatCurrency, onCheckout: (total, customerId) {
         Navigator.pop(context);
-        _showPaymentDialog(context, ref, total);
+        _showPaymentDialog(context, ref, total, customerId);
       }),
     );
   }
 
-  void _showPaymentDialog(BuildContext context, WidgetRef ref, double total) {
+  void _showPaymentDialog(BuildContext context, WidgetRef ref, double total, String? customerId) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -304,6 +306,7 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
           await ref.read(cartProvider.notifier).checkout(
             paymentMethod: paymentMethod,
             cashReceived: cashReceived,
+            customerId: customerId,
           );
 
           if (!context.mounted) return;
@@ -430,106 +433,341 @@ class _ProductCard extends StatelessWidget {
 }
 
 // --- Cart Bottom Sheet ---
-class _CartSheet extends ConsumerWidget {
+class _CartSheet extends ConsumerStatefulWidget {
   final String Function(int) formatCurrency;
-  final void Function(double) onCheckout;
+  final void Function(double total, String? customerId) onCheckout;
   const _CartSheet({required this.formatCurrency, required this.onCheckout});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cartItems = ref.watch(cartProvider);
-    final notifier = ref.read(cartProvider.notifier);
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.7,
-      maxChildSize: 0.95,
-      builder: (_, controller) => Column(
-        children: [
-          const SizedBox(height: 8),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFD1D5DB), borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
+  ConsumerState<_CartSheet> createState() => _CartSheetState();
+}
+
+class _CartSheetState extends ConsumerState<_CartSheet> {
+  Customer? _selectedCustomer;
+  bool _isAddingNew = false;
+  String _searchQuery = '';
+  final _customerSearchController = TextEditingController();
+  final _customerNameController = TextEditingController();
+  final _customerPhoneController = TextEditingController();
+
+  @override
+  void dispose() {
+    _customerSearchController.dispose();
+    _customerNameController.dispose();
+    _customerPhoneController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildCustomerSection() {
+    final customersAsync = ref.watch(customerProvider);
+
+    if (_isAddingNew) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Keranjang', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppColors.destructive),
-                  onPressed: cartItems.isEmpty ? null : () { notifier.clearCart(); Navigator.pop(context); },
+                const Text(
+                  'Tambah Pelanggan Baru',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF374151)),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _isAddingNew = false),
+                  child: const Text('Batal', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _customerNameController,
+              decoration: InputDecoration(
+                labelText: 'Nama Pelanggan',
+                labelStyle: const TextStyle(fontSize: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                isDense: true,
+                contentPadding: const EdgeInsets.all(10),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _customerPhoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Nomor HP',
+                labelStyle: const TextStyle(fontSize: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                isDense: true,
+                contentPadding: const EdgeInsets.all(10),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 38,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final name = _customerNameController.text.trim();
+                  final phone = _customerPhoneController.text.trim();
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Nama pelanggan harus diisi')),
+                    );
+                    return;
+                  }
+                  try {
+                    final newCust = await ref.read(customerProvider.notifier).addCustomer(name, phone);
+                    setState(() {
+                      _selectedCustomer = newCust;
+                      _isAddingNew = false;
+                      _customerNameController.clear();
+                      _customerPhoneController.clear();
+                    });
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal menyimpan pelanggan: $e')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Simpan & Pilih', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Pelanggan',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF374151)),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.add, size: 14),
+                label: const Text('Pelanggan Baru', style: TextStyle(fontSize: 12)),
+                onPressed: () => setState(() => _isAddingNew = true),
+              ),
+            ],
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: cartItems.isEmpty
-                ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.shopping_cart_outlined, size: 60, color: Color(0xFFD1D5DB)),
-                    SizedBox(height: 12),
-                    Text('Keranjang kosong', style: TextStyle(color: Color(0xFF6B7280))),
-                  ]))
-                : ListView.separated(
-                    controller: controller,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: cartItems.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-                    itemBuilder: (_, i) {
-                      final item = cartItems[i];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                                Text('Rp ${formatCurrency(item.product.price.toInt())}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
-                              ]),
-                            ),
-                            Row(children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline, color: Color(0xFF2563EB)),
-                                onPressed: () => notifier.updateQuantity(item.product.id, item.quantity - 1),
-                              ),
-                              Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                              IconButton(
-                                icon: const Icon(Icons.add_circle_outline, color: Color(0xFF2563EB)),
-                                onPressed: () => notifier.updateQuantity(item.product.id, item.quantity + 1),
-                              ),
-                            ]),
-                            Text('Rp ${formatCurrency(item.totalPrice.toInt())}',
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF111827))),
-                          ],
-                        ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _customerSearchController,
+                  decoration: InputDecoration(
+                    hintText: 'Cari pelanggan...',
+                    hintStyle: const TextStyle(fontSize: 12),
+                    prefixIcon: const Icon(Icons.search, size: 16),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          customersAsync.when(
+            data: (customers) {
+              final filteredCustomers = customers.where((c) {
+                final query = _searchQuery.toLowerCase();
+                return c.name.toLowerCase().contains(query) ||
+                    (c.phone != null && c.phone!.contains(query));
+              }).toList();
+
+              final dropdownItems = <Customer?>[null];
+              for (final c in filteredCustomers) {
+                dropdownItems.add(c);
+              }
+              if (_selectedCustomer != null && !filteredCustomers.contains(_selectedCustomer)) {
+                dropdownItems.add(_selectedCustomer);
+              }
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFD1D5DB)),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white,
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<Customer?>(
+                    value: _selectedCustomer,
+                    hint: const Text('Pilih Pelanggan (Umum)', style: TextStyle(fontSize: 13)),
+                    isExpanded: true,
+                    style: const TextStyle(fontSize: 13, color: Colors.black),
+                    items: dropdownItems.map((c) {
+                      if (c == null) {
+                        return const DropdownMenuItem<Customer?>(
+                          value: null,
+                          child: Text('Pelanggan Umum (Non-Member)', style: TextStyle(fontSize: 13)),
+                        );
+                      }
+                      final display = c.phone != null && c.phone!.isNotEmpty ? '${c.name} (${c.phone})' : c.name;
+                      return DropdownMenuItem<Customer?>(
+                        value: c,
+                        child: Text(display, style: const TextStyle(fontSize: 13)),
                       );
+                    }).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedCustomer = val;
+                      });
                     },
                   ),
-          ),
-          if (cartItems.isNotEmpty) Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, -4))],
-            ),
-            child: Column(children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                Text('Rp ${formatCurrency(notifier.totalAmount.toInt())}',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF2563EB))),
-              ]),
-              const SizedBox(height: 12),
-              SizedBox(width: double.infinity, child: ElevatedButton(
-                onPressed: () => onCheckout(notifier.totalAmount),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Lanjut Pembayaran', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-              )),
-            ]),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            error: (err, st) => Text('Gagal memuat pelanggan: $err', style: const TextStyle(color: Colors.red, fontSize: 12)),
           ),
+          if (_selectedCustomer != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Terpilih: ${_selectedCustomer!.name}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => _selectedCustomer = null),
+                  child: const Text(
+                    'Hapus Pilihan',
+                    style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cartItems = ref.watch(cartProvider);
+    final notifier = ref.read(cartProvider.notifier);
+    return Padding(
+      padding: MediaQuery.of(context).viewInsets,
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFD1D5DB), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Keranjang', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: AppColors.destructive),
+                    onPressed: cartItems.isEmpty ? null : () { notifier.clearCart(); Navigator.pop(context); },
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: cartItems.isEmpty
+                  ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.shopping_cart_outlined, size: 60, color: Color(0xFFD1D5DB)),
+                      SizedBox(height: 12),
+                      Text('Keranjang kosong', style: TextStyle(color: Color(0xFF6B7280))),
+                    ]))
+                  : ListView.separated(
+                      controller: controller,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: cartItems.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
+                      itemBuilder: (_, i) {
+                        final item = cartItems[i];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                  Text('Rp ${widget.formatCurrency(item.product.price.toInt())}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                                ]),
+                              ),
+                              Row(children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline, color: Color(0xFF2563EB)),
+                                  onPressed: () => notifier.updateQuantity(item.product.id, item.quantity - 1),
+                                ),
+                                Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFF2563EB)),
+                                  onPressed: () => notifier.updateQuantity(item.product.id, item.quantity + 1),
+                                ),
+                              ]),
+                              Text('Rp ${widget.formatCurrency(item.totalPrice.toInt())}',
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF111827))),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            if (cartItems.isNotEmpty) Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, -4))],
+              ),
+              child: Column(children: [
+                _buildCustomerSection(),
+                const Divider(height: 16),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  Text('Rp ${widget.formatCurrency(notifier.totalAmount.toInt())}',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF2563EB))),
+                ]),
+                const SizedBox(height: 12),
+                SizedBox(width: double.infinity, child: ElevatedButton(
+                  onPressed: () => widget.onCheckout(notifier.totalAmount, _selectedCustomer?.id),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Lanjut Pembayaran', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                )),
+              ]),
+            ),
+          ],
+        ),
       ),
     );
   }
