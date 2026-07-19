@@ -130,7 +130,10 @@ class MiniAnalyticsWidget extends ConsumerWidget {
   }
 
   Widget _buildTopProductsCard(ReportData reportData) {
-    final topProducts = reportData.topProducts;
+    final topProducts = reportData.topProducts
+        .where((p) => p.totalSold > 0)
+        .take(5)
+        .toList();
     
     if (topProducts.isEmpty) {
       return Container(
@@ -139,6 +142,9 @@ class MiniAnalyticsWidget extends ConsumerWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFE5E7EB)),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          ],
         ),
         padding: const EdgeInsets.all(32),
         child: const Center(

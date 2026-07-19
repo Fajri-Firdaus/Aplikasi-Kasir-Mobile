@@ -44,3 +44,10 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-19 21:17:04
+Masalah : Pada menu home widget produk terlaris hari ini, buat sedikit berbeda dari tab produk menu laporan. Pada widget ini buat hanya menampilkan jika barang sudah ada yang terjual dan maksimal tampilkan 5 item teratas.
+Perbaikan :
+- Mengatur widget produk terlaris agar hanya menampilkan produk yang sudah terjual dan performa 5 teratas
+
+===========
+
