@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../reports/providers/reports_provider.dart';
 import '../../customers/providers/customer_provider.dart';
 import '../../customers/data/customer.dart';
+import '../data/cart_item.dart';
 
 class TransactionPage extends ConsumerStatefulWidget {
   const TransactionPage({super.key});
@@ -285,53 +286,60 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _CartSheet(formatCurrency: _formatCurrency, onCheckout: (total, customerId) {
+      builder: (_) => _CartSheet(formatCurrency: _formatCurrency, onCheckout: (total, customer) {
         Navigator.pop(context);
-        _showPaymentDialog(context, ref, total, customerId);
+        _showPaymentDialog(context, ref, total, customer);
       }),
     );
   }
 
-  void _showPaymentDialog(BuildContext context, WidgetRef ref, double total, String? customerId) {
+  void _showPaymentDialog(BuildContext context, WidgetRef ref, double total, Customer? customer) {
+    final cartItems = ref.read(cartProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _PaymentSheet(total: total, formatCurrency: _formatCurrency, onSuccess: (method, cash) async {
-        final paymentMethod = method == 'Tunai' ? 'cash' : (method == 'QRIS' ? 'qris' : 'transfer');
-        final cashReceived = method == 'Tunai' ? cash : total;
+      builder: (_) => _PaymentSheet(
+        total: total,
+        customer: customer,
+        items: cartItems,
+        formatCurrency: _formatCurrency,
+        onSuccess: (method, cash) async {
+          final paymentMethod = method == 'Tunai' ? 'cash' : (method == 'QRIS' ? 'qris' : 'transfer');
+          final cashReceived = method == 'Tunai' ? cash : total;
 
-        try {
-          await ref.read(cartProvider.notifier).checkout(
-            paymentMethod: paymentMethod,
-            cashReceived: cashReceived,
-            customerId: customerId,
-          );
+          try {
+            await ref.read(cartProvider.notifier).checkout(
+              paymentMethod: paymentMethod,
+              cashReceived: cashReceived,
+              customerId: customer?.id,
+            );
 
-          if (!context.mounted) return;
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(children: [Icon(Icons.check_circle, color: Colors.white), SizedBox(width: 8), Text('Transaksi berhasil!')]),
-              backgroundColor: const Color(0xFF16A34A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          context.go('/dashboard');
-        } catch (e) {
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(children: [const Icon(Icons.error_outline, color: Colors.white), const SizedBox(width: 8), Expanded(child: Text('Gagal menyimpan transaksi: $e'))]),
-              backgroundColor: const Color(0xFFDC2626),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }),
+            if (!context.mounted) return;
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Row(children: [Icon(Icons.check_circle, color: Colors.white), SizedBox(width: 8), Text('Transaksi berhasil!')]),
+                backgroundColor: const Color(0xFF16A34A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            context.go('/dashboard');
+          } catch (e) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(children: [const Icon(Icons.error_outline, color: Colors.white), const SizedBox(width: 8), Expanded(child: Text('Gagal menyimpan transaksi: $e'))]),
+                backgroundColor: const Color(0xFFDC2626),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 }
@@ -435,7 +443,7 @@ class _ProductCard extends StatelessWidget {
 // --- Cart Bottom Sheet ---
 class _CartSheet extends ConsumerStatefulWidget {
   final String Function(int) formatCurrency;
-  final void Function(double total, String? customerId) onCheckout;
+  final void Function(double total, Customer? customer) onCheckout;
   const _CartSheet({required this.formatCurrency, required this.onCheckout});
 
   @override
@@ -918,7 +926,7 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                 ]),
                 const SizedBox(height: 12),
                 SizedBox(width: double.infinity, child: ElevatedButton(
-                  onPressed: () => widget.onCheckout(notifier.totalAmount, _selectedCustomer?.id),
+                  onPressed: () => widget.onCheckout(notifier.totalAmount, _selectedCustomer),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -938,9 +946,19 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
 // --- Payment Bottom Sheet ---
 class _PaymentSheet extends StatefulWidget {
   final double total;
+  final Customer? customer;
+  final List<CartItem> items;
   final String Function(int) formatCurrency;
   final void Function(String method, double cash) onSuccess;
-  const _PaymentSheet({required this.total, required this.formatCurrency, required this.onSuccess});
+
+  const _PaymentSheet({
+    required this.total,
+    this.customer,
+    required this.items,
+    required this.formatCurrency,
+    required this.onSuccess,
+  });
+
   @override
   State<_PaymentSheet> createState() => _PaymentSheetState();
 }
@@ -987,6 +1005,104 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   Text('Rp ${widget.formatCurrency(widget.total.toInt())}',
                       style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
                 ]),
+              ),
+              const SizedBox(height: 12),
+              // Detail Pelanggan
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.person_outline, size: 16, color: Color(0xFF4B5563)),
+                        SizedBox(width: 6),
+                        Text('Detail Pelanggan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF374151))),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          widget.customer != null ? widget.customer!.name : 'Pelanggan Umum (Non-Member)',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF111827)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: widget.customer != null ? const Color(0xFFDBEAFE) : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            widget.customer != null ? 'Member' : 'Umum',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: widget.customer != null ? const Color(0xFF1D4ED8) : const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (widget.customer?.phone != null && widget.customer!.phone!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'No HP: ${widget.customer!.phone}',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Detail Orderan
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.receipt_long_outlined, size: 16, color: Color(0xFF4B5563)),
+                        const SizedBox(width: 6),
+                        Text('Detail Orderan (${widget.items.length} item)', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF374151))),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...widget.items.map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item.product.name} x${item.quantity}',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF111827), fontWeight: FontWeight.w500),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              'Rp ${widget.formatCurrency(item.totalPrice.toInt())}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               const Text('Metode Pembayaran', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),

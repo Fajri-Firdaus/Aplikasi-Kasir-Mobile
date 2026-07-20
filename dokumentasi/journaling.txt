@@ -86,3 +86,11 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-20 17:25:52
+Masalah : Menambahkan detail transaksi di menu pembayaran
+Perbaikan :
+- Penambahan kartu detail pelanggan
+- Kartu detail orderan
+
+==========
+
