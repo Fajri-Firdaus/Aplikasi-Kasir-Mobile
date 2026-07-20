@@ -710,6 +710,40 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                 );
               }
 
+              final dropdownItems = <DropdownMenuItem<String?>>[
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Pelanggan Umum (Non-Member)', style: TextStyle(fontSize: 13)),
+                ),
+              ];
+
+              bool foundSelected = _selectedCustomer == null;
+
+              for (final c in customers) {
+                if (_selectedCustomer != null && c.id == _selectedCustomer!.id) {
+                  foundSelected = true;
+                }
+                final display = c.phone != null && c.phone!.isNotEmpty ? '${c.name} (${c.phone})' : c.name;
+                dropdownItems.add(
+                  DropdownMenuItem<String?>(
+                    value: c.id,
+                    child: Text(display, style: const TextStyle(fontSize: 13)),
+                  ),
+                );
+              }
+
+              if (!foundSelected && _selectedCustomer != null) {
+                final display = _selectedCustomer!.phone != null && _selectedCustomer!.phone!.isNotEmpty 
+                    ? '${_selectedCustomer!.name} (${_selectedCustomer!.phone})' 
+                    : _selectedCustomer!.name;
+                dropdownItems.add(
+                  DropdownMenuItem<String?>(
+                    value: _selectedCustomer!.id,
+                    child: Text(display, style: const TextStyle(fontSize: 13)),
+                  ),
+                );
+              }
+
               return Container(
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -719,27 +753,22 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                   color: Colors.white,
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<Customer?>(
-                    value: _selectedCustomer,
+                  child: DropdownButton<String?>(
+                    value: _selectedCustomer?.id,
                     hint: const Text('Pilih Pelanggan (Umum)', style: TextStyle(fontSize: 13)),
                     isExpanded: true,
                     style: const TextStyle(fontSize: 13, color: Colors.black),
-                    items: [
-                      const DropdownMenuItem<Customer?>(
-                        value: null,
-                        child: Text('Pelanggan Umum (Non-Member)', style: TextStyle(fontSize: 13)),
-                      ),
-                      ...customers.map((c) {
-                        final display = c.phone != null && c.phone!.isNotEmpty ? '${c.name} (${c.phone})' : c.name;
-                        return DropdownMenuItem<Customer?>(
-                          value: c,
-                          child: Text(display, style: const TextStyle(fontSize: 13)),
-                        );
-                      }),
-                    ],
+                    items: dropdownItems,
                     onChanged: (val) {
                       setState(() {
-                        _selectedCustomer = val;
+                        if (val == null) {
+                          _selectedCustomer = null;
+                        } else {
+                          _selectedCustomer = customers.firstWhere(
+                            (c) => c.id == val,
+                            orElse: () => _selectedCustomer!,
+                          );
+                        }
                       });
                     },
                   ),
