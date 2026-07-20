@@ -146,7 +146,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     ),
                     SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
-                      child: _buildCustomerTab(),
+                      child: _buildCustomerTab(reportData),
                     ),
                     SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
@@ -502,18 +502,137 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     ]);
   }
 
-  Widget _buildCustomerTab() {
-    return Column(children: [
-      _sectionTitle('Insight Pelanggan (CRM)', Icons.person_outline, const Color(0xFFDB2777)),
-      const SizedBox(height: 12),
-      Row(children: [
-        Expanded(child: _statCard('Total Pelanggan', '32', Icons.people_outline, const Color(0xFFDB2777), const Color(0xFFFCE7F3))),
-        const SizedBox(width: 10),
-        Expanded(child: _statCard('Pelanggan Baru', '8', Icons.person_add_alt_outlined, const Color(0xFF7C3AED), const Color(0xFFEDE9FE))),
-      ]),
-      const SizedBox(height: 10),
-      _statCard('Rata-rata Nilai Transaksi', 'Rp 51.042', Icons.shopping_bag_outlined, const Color(0xFF2563EB), const Color(0xFFDBEAFE)),
-    ]);
+  Widget _buildCustomerTab(ReportData reportData) {
+    final summary = reportData.customerSummary;
+    final totalCust = summary?.totalCustomers ?? 0;
+    final totalTx = summary?.totalCustomerTransactions ?? 0;
+    final totalRev = summary?.totalCustomerRevenue ?? 0.0;
+    final avgVal = summary?.averageTransactionValue ?? 0.0;
+    final topCustomers = summary?.topCustomers ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Insight Pelanggan (CRM)', Icons.person_outline, const Color(0xFFDB2777)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _statCard('Total Pelanggan Terdaftar', '$totalCust Orang', Icons.people_outline, const Color(0xFFDB2777), const Color(0xFFFCE7F3))),
+            const SizedBox(width: 10),
+            Expanded(child: _statCard('Transaksi Pelanggan', '$totalTx Transaksi', Icons.shopping_bag_outlined, const Color(0xFF7C3AED), const Color(0xFFEDE9FE))),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _statCard('Omset dari Pelanggan', 'Rp ${_formatCurrency(totalRev.toInt())}', Icons.payments_outlined, const Color(0xFF059669), const Color(0xFFD1FAE5))),
+            const SizedBox(width: 10),
+            Expanded(child: _statCard('Rata-rata Nilai Belanja', 'Rp ${_formatCurrency(avgVal.toInt())}', Icons.analytics_outlined, const Color(0xFF2563EB), const Color(0xFFDBEAFE))),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _sectionTitle('10 Pelanggan Teratas (Top Buyers)', Icons.star_outline, const Color(0xFFD97706)),
+        const SizedBox(height: 12),
+        if (topCustomers.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: const Column(
+              children: [
+                Icon(Icons.person_search_outlined, size: 48, color: Color(0xFF9CA3AF)),
+                SizedBox(height: 8),
+                Text(
+                  'Belum ada transaksi pelanggan terdaftar pada periode ini',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF6B7280), fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Column(
+              children: topCustomers.asMap().entries.map((entry) {
+                final idx = entry.key + 1;
+                final cust = entry.value;
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: idx <= 3 ? const Color(0xFFFEF3C7) : const Color(0xFFF3F4F6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '#$idx',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: idx <= 3 ? const Color(0xFFD97706) : const Color(0xFF4B5563),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  cust.name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF111827)),
+                                ),
+                                if (cust.phone != null && cust.phone!.isNotEmpty)
+                                  Text(
+                                    cust.phone!,
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Rp ${_formatCurrency(cust.totalSpent.toInt())}',
+                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF2563EB)),
+                              ),
+                              Text(
+                                '${cust.totalTransactions} Transaksi',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (idx < topCustomers.length) const Divider(height: 1, indent: 16, endIndent: 16),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _buildXZReportTab(ReportData reportData) {

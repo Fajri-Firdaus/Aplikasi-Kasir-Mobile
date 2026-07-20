@@ -102,3 +102,9 @@ Perbaikan :
 
 ==========
 
+Datetime : 2026-07-20 17:47:22
+Masalah : Mengaktifkan tab pelanggan di menu laporan agar berfungsi dan terhubung ke database
+Perbaikan :
+- Menambahkan metrik insight pelanggan
+- Menambahkan widget 10 pelanggan teratas
+

@@ -35,6 +35,38 @@ class TopProduct {
   TopProduct({required this.name, required this.totalSold, required this.revenue});
 }
 
+class CustomerReportSummary {
+  final int totalCustomers;
+  final int totalCustomerTransactions;
+  final double totalCustomerRevenue;
+  final double averageTransactionValue;
+  final List<TopCustomer> topCustomers;
+
+  CustomerReportSummary({
+    required this.totalCustomers,
+    required this.totalCustomerTransactions,
+    required this.totalCustomerRevenue,
+    required this.averageTransactionValue,
+    required this.topCustomers,
+  });
+}
+
+class TopCustomer {
+  final String id;
+  final String name;
+  final String? phone;
+  final int totalTransactions;
+  final double totalSpent;
+
+  TopCustomer({
+    required this.id,
+    required this.name,
+    this.phone,
+    required this.totalTransactions,
+    required this.totalSpent,
+  });
+}
+
 class LowStockItem {
   final String name;
   final int stock;
@@ -478,5 +510,66 @@ class ReportLocalRepository {
       }
     }
     return list;
+  }
+
+  Future<CustomerReportSummary> getCustomerReportSummary({DateTime? startDate, DateTime? endDate}) async {
+    final db = await _dbService.database;
+
+    final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM customers');
+    final totalCustomers = countResult.isNotEmpty ? ((countResult.first['count'] as int?) ?? 0) : 0;
+
+    String dateFilter = '';
+    List<dynamic> whereArgs = [];
+
+    if (startDate != null && endDate != null) {
+      final startStr = '${startDate.toIso8601String().split('T').first} 00:00:00';
+      final endStr = '${endDate.toIso8601String().split('T').first} 23:59:59';
+      dateFilter = " AND DATETIME(t.created_at, 'localtime') BETWEEN ? AND ? ";
+      whereArgs = [startStr, endStr];
+    }
+
+    final transResult = await db.rawQuery(
+      '''
+      SELECT COUNT(*) as trans_count, COALESCE(SUM(t.total_amount), 0.0) as total_revenue
+      FROM transactions t
+      WHERE t.customer_id IS NOT NULL AND t.customer_id != '' AND t.customer_id != '0' AND t.customer_id != 0 AND t.status != 'void' $dateFilter
+      ''',
+      whereArgs,
+    );
+
+    final totalCustomerTransactions = transResult.isNotEmpty ? ((transResult.first['trans_count'] as int?) ?? 0) : 0;
+    final totalCustomerRevenue = transResult.isNotEmpty ? ((transResult.first['total_revenue'] as num?)?.toDouble() ?? 0.0) : 0.0;
+    final avgValue = totalCustomerTransactions > 0 ? totalCustomerRevenue / totalCustomerTransactions : 0.0;
+
+    final topResult = await db.rawQuery(
+      '''
+      SELECT c.id, c.name, c.phone, COUNT(t.id) as trans_count, COALESCE(SUM(t.total_amount), 0.0) as total_spent
+      FROM customers c
+      JOIN transactions t ON CAST(c.id AS TEXT) = CAST(t.customer_id AS TEXT)
+      WHERE t.status != 'void' $dateFilter
+      GROUP BY c.id, c.name, c.phone
+      ORDER BY total_spent DESC
+      LIMIT 10
+      ''',
+      whereArgs,
+    );
+
+    final topCustomers = topResult.map((row) {
+      return TopCustomer(
+        id: (row['id'] ?? '').toString(),
+        name: (row['name'] as String?) ?? 'Pelanggan',
+        phone: row['phone'] as String?,
+        totalTransactions: (row['trans_count'] as int?) ?? 0,
+        totalSpent: (row['total_spent'] as num?)?.toDouble() ?? 0.0,
+      );
+    }).toList();
+
+    return CustomerReportSummary(
+      totalCustomers: totalCustomers,
+      totalCustomerTransactions: totalCustomerTransactions,
+      totalCustomerRevenue: totalCustomerRevenue,
+      averageTransactionValue: avgValue,
+      topCustomers: topCustomers,
+    );
   }
 }
