@@ -573,9 +573,18 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                 child: TextField(
                   controller: _customerSearchController,
                   decoration: InputDecoration(
-                    hintText: 'Cari pelanggan...',
+                    hintText: 'Ketik nama / no HP pelanggan...',
                     hintStyle: const TextStyle(fontSize: 12),
                     prefixIcon: const Icon(Icons.search, size: 16),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () => setState(() {
+                              _searchQuery = '';
+                              _customerSearchController.clear();
+                            }),
+                          )
+                        : null,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -589,24 +598,120 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
           customersAsync.when(
             data: (customers) {
-              final filteredCustomers = customers.where((c) {
-                final query = _searchQuery.toLowerCase();
-                return c.name.toLowerCase().contains(query) ||
-                    (c.phone != null && c.phone!.contains(query));
-              }).toList();
+              final query = _searchQuery.trim().toLowerCase();
+              final filteredCustomers = query.isEmpty 
+                  ? <Customer>[] 
+                  : customers.where((c) {
+                      return c.name.toLowerCase().contains(query) ||
+                          (c.phone != null && c.phone!.contains(query));
+                    }).take(5).toList();
 
-              final dropdownItems = <Customer?>[null];
-              for (final c in filteredCustomers) {
-                dropdownItems.add(c);
-              }
-              if (_selectedCustomer != null && !filteredCustomers.contains(_selectedCustomer)) {
-                dropdownItems.add(_selectedCustomer);
+              if (_searchQuery.trim().isNotEmpty) {
+                return Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF3B82F6), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 3)),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (filteredCustomers.isEmpty)
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.person_add_alt_1_outlined, color: Color(0xFF2563EB)),
+                          title: Text('Pelanggan "$_searchQuery" tidak ditemukan', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          subtitle: const Text('Tap di sini untuk membuat pelanggan baru', style: TextStyle(fontSize: 11, color: Color(0xFF2563EB))),
+                          onTap: () {
+                            setState(() {
+                              _isAddingNew = true;
+                              _customerNameController.text = _searchQuery.trim();
+                              _searchQuery = '';
+                              _customerSearchController.clear();
+                            });
+                          },
+                        )
+                      else ...[
+                        const Padding(
+                          padding: EdgeInsets.only(left: 12, top: 8, bottom: 4),
+                          child: Text(
+                            'Pilihan Pelanggan Terkait:',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF6B7280)),
+                          ),
+                        ),
+                        ...filteredCustomers.map((c) {
+                          final isSelected = _selectedCustomer?.id == c.id;
+                          return InkWell(
+                            onTap: () {
+                              setState(() {
+                                _selectedCustomer = c;
+                                _searchQuery = '';
+                                _customerSearchController.clear();
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
+                                border: const Border(top: BorderSide(color: Color(0xFFF3F4F6))),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE5E7EB),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.person,
+                                      size: 16,
+                                      color: isSelected ? Colors.white : const Color(0xFF4B5563),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          c.name,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                            color: isSelected ? const Color(0xFF1D4ED8) : const Color(0xFF111827),
+                                          ),
+                                        ),
+                                        if (c.phone != null && c.phone!.isNotEmpty)
+                                          Text(
+                                            c.phone!,
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(Icons.check_circle, color: Color(0xFF2563EB), size: 18),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ],
+                  ),
+                );
               }
 
               return Container(
+                margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFFD1D5DB)),
@@ -619,19 +724,19 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                     hint: const Text('Pilih Pelanggan (Umum)', style: TextStyle(fontSize: 13)),
                     isExpanded: true,
                     style: const TextStyle(fontSize: 13, color: Colors.black),
-                    items: dropdownItems.map((c) {
-                      if (c == null) {
-                        return const DropdownMenuItem<Customer?>(
-                          value: null,
-                          child: Text('Pelanggan Umum (Non-Member)', style: TextStyle(fontSize: 13)),
+                    items: [
+                      const DropdownMenuItem<Customer?>(
+                        value: null,
+                        child: Text('Pelanggan Umum (Non-Member)', style: TextStyle(fontSize: 13)),
+                      ),
+                      ...customers.map((c) {
+                        final display = c.phone != null && c.phone!.isNotEmpty ? '${c.name} (${c.phone})' : c.name;
+                        return DropdownMenuItem<Customer?>(
+                          value: c,
+                          child: Text(display, style: const TextStyle(fontSize: 13)),
                         );
-                      }
-                      final display = c.phone != null && c.phone!.isNotEmpty ? '${c.name} (${c.phone})' : c.name;
-                      return DropdownMenuItem<Customer?>(
-                        value: c,
-                        child: Text(display, style: const TextStyle(fontSize: 13)),
-                      );
-                    }).toList(),
+                      }),
+                    ],
                     onChanged: (val) {
                       setState(() {
                         _selectedCustomer = val;
@@ -645,22 +750,41 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
             error: (err, st) => Text('Gagal memuat pelanggan: $err', style: const TextStyle(color: Colors.red, fontSize: 12)),
           ),
           if (_selectedCustomer != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Terpilih: ${_selectedCustomer!.name}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => _selectedCustomer = null),
-                  child: const Text(
-                    'Hapus Pilihan',
-                    style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Pelanggan Terpilih: ${_selectedCustomer!.name}${_selectedCustomer!.phone != null && _selectedCustomer!.phone!.isNotEmpty ? " (${_selectedCustomer!.phone})" : ""}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedCustomer = null),
+                    child: const Text(
+                      'Ganti',
+                      style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],

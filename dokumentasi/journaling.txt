@@ -69,3 +69,12 @@ Perbaikan :
 
 ============
 
+Datetime : 2026-07-20 17:02:07
+Masalah : Pada menu keranjang saat user sedang mencari pelanggan di form pencarian, buat pilihan yang paling sesuai muncul (muncul kolom predictive text yang menampilkan beberapa pilihan yang sesuai dengan yang diketikkan user)
+Perbaikan :
+- Kotak saran prediktif realtime
+- Penanganan jika pelangga tidak ditemukan
+- Konfirmasi visual pelanggan terpilih
+
+==========
+
