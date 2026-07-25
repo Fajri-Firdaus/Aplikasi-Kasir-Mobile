@@ -108,3 +108,8 @@ Perbaikan :
 - Menambahkan metrik insight pelanggan
 - Menambahkan widget 10 pelanggan teratas
 
+- Membersihkan header pada file reports_page.dart
+- Menghapus komponen popip menu filter dan pilihan ekspor
+
+==========
+

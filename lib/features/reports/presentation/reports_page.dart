@@ -14,9 +14,6 @@ class ReportsPage extends ConsumerStatefulWidget {
 
 class _ReportsPageState extends ConsumerState<ReportsPage> {
   int _activeTab = 0;
-  String _selectedDateLabel = 'Hari Ini';
-  bool _showDateFilter = false;
-  bool _showExportMenu = false;
   String _historyMode = 'shift';
   String _selectedCashier = 'Semua Kasir';
   late final PageController _pageController;
@@ -66,35 +63,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     );
   }
 
-  void _updateDateFilter(String opt) {
-    final now = DateTime.now();
-    DateTime start;
-    DateTime end = now;
-
-    switch (opt) {
-      case 'Hari Ini':
-        start = now;
-        break;
-      case '7 Hari':
-        start = now.subtract(const Duration(days: 6));
-        break;
-      case '30 Hari':
-        start = now.subtract(const Duration(days: 29));
-        break;
-      case 'Bulan Ini':
-        start = DateTime(now.year, now.month, 1);
-        break;
-      case 'Tahun Ini':
-        start = DateTime(now.year, 1, 1);
-        break;
-      default:
-        start = now;
-    }
-
-    ref.read(reportsProvider.notifier).setFilter(startDate: start, endDate: end);
-  }
-
-  static const _dateOptions = ['Hari Ini', '7 Hari', '30 Hari', 'Bulan Ini', 'Tahun Ini'];
   static const _tabs = [
     {'key': 'financial', 'label': 'Keuangan', 'icon': Icons.attach_money},
     {'key': 'product', 'label': 'Produk', 'icon': Icons.inventory_2_outlined},
@@ -111,96 +79,66 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
-        child: GestureDetector(
-          onTap: () => setState(() { _showDateFilter = false; _showExportMenu = false; }),
-          behavior: HitTestBehavior.translucent,
-          child: Column(
-            children: [
-              _buildHeader(reportData),
-              _buildTabBar(),
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _activeTab = index;
-                    });
-                    _scrollToActiveTab(index);
-                  },
-                  children: [
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildFinancialTab(reportData),
-                    ),
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildProductTab(reportData),
-                    ),
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildInventoryTab(ref.watch(productsProvider)),
-                    ),
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildStaffTab(),
-                    ),
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildCustomerTab(reportData),
-                    ),
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildXZReportTab(reportData),
-                    ),
-                  ],
-                ),
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildTabBar(),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _activeTab = index;
+                  });
+                  _scrollToActiveTab(index);
+                },
+                children: [
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildFinancialTab(reportData),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildProductTab(reportData),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildInventoryTab(ref.watch(productsProvider)),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildStaffTab(),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildCustomerTab(reportData),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildXZReportTab(reportData),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(ReportData reportData) {
+  Widget _buildHeader() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: const Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Laporan & Analitik', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
-                Text('Data per $_selectedDateLabel', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                Text('Laporan & Analitik', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                Text('Ringkasan data laporan toko dan operasional', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
               ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () => setState(() { _showDateFilter = !_showDateFilter; _showExportMenu = false; }),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(color: const Color(0xFFDBEAFE), borderRadius: BorderRadius.circular(10)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.calendar_today, size: 13, color: Color(0xFF2563EB)),
-                const SizedBox(width: 4),
-                Text(_selectedDateLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
-                const Icon(Icons.keyboard_arrow_down, size: 15, color: Color(0xFF2563EB)),
-              ]),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => setState(() { _showExportMenu = !_showExportMenu; _showDateFilter = false; }),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.download_outlined, size: 15, color: Color(0xFF374151)),
-                SizedBox(width: 4),
-                Text('Ekspor', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151))),
-              ]),
             ),
           ),
         ],
@@ -213,54 +151,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       color: Colors.white,
       child: Column(
         children: [
-          if (_showDateFilter)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12)],
-              ),
-              child: Column(
-                children: _dateOptions.map((opt) => InkWell(
-                  onTap: () {
-                    setState(() { _selectedDateLabel = opt; _showDateFilter = false; });
-                    _updateDateFilter(opt);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: opt == _selectedDateLabel ? const Color(0xFFDBEAFE) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(children: [
-                      Expanded(child: Text(opt, style: TextStyle(
-                        fontWeight: opt == _selectedDateLabel ? FontWeight.w700 : FontWeight.normal,
-                        color: opt == _selectedDateLabel ? const Color(0xFF2563EB) : const Color(0xFF374151),
-                        fontSize: 13,
-                      ))),
-                      if (opt == _selectedDateLabel) const Icon(Icons.check, size: 16, color: Color(0xFF2563EB)),
-                    ]),
-                  ),
-                )).toList(),
-              ),
-            ),
-          if (_showExportMenu)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12)],
-              ),
-              child: Column(children: [
-                _exportOption(Icons.picture_as_pdf, 'Ekspor PDF', const Color(0xFFDC2626), () => _handleExport('PDF')),
-                const Divider(height: 1),
-                _exportOption(Icons.table_chart_outlined, 'Ekspor Excel/CSV', const Color(0xFF16A34A), () => _handleExport('CSV')),
-              ]),
-            ),
           const SizedBox(height: 4),
           SizedBox(
             height: 44,
@@ -311,27 +201,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           const Divider(height: 1, color: Color(0xFFE5E7EB)),
         ],
       ),
-    );
-  }
-
-  Widget _exportOption(IconData icon, String label, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 10),
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
-        ]),
-      ),
-    );
-  }
-
-  void _handleExport(String format) {
-    setState(() => _showExportMenu = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Mengekspor laporan sebagai $format...'), backgroundColor: const Color(0xFF2563EB), behavior: SnackBarBehavior.floating),
     );
   }
 
