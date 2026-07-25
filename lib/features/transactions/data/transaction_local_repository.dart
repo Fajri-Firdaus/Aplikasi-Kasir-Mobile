@@ -143,7 +143,7 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
         'payment_method': paymentMethod,
         'cash_received': cashReceived,
         'status': 'completed',
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
       });
 
       // 2. Loop Cart Items and save details and decrement stocks
@@ -304,32 +304,33 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
 
   Future<List<Transaction>> getFilteredTransactions({DateTime? startDate, DateTime? endDate}) async {
     final db = await _dbService.database;
-    String? whereClause;
-    List<dynamic>? whereArgs;
-
-    if (startDate != null && endDate != null) {
-      final startStr = '${startDate.toIso8601String().split('T').first} 00:00:00';
-      final endStr = '${endDate.toIso8601String().split('T').first} 23:59:59';
-      whereClause = "DATETIME(created_at, 'localtime') BETWEEN ? AND ?";
-      whereArgs = [startStr, endStr];
-    } else if (startDate != null) {
-      final startStr = '${startDate.toIso8601String().split('T').first} 00:00:00';
-      whereClause = "DATETIME(created_at, 'localtime') >= ?";
-      whereArgs = [startStr];
-    } else if (endDate != null) {
-      final endStr = '${endDate.toIso8601String().split('T').first} 23:59:59';
-      whereClause = "DATETIME(created_at, 'localtime') <= ?";
-      whereArgs = [endStr];
-    }
-
     final List<Map<String, dynamic>> maps = await db.query(
       'transactions',
-      where: whereClause,
-      whereArgs: whereArgs,
-      orderBy: 'created_at DESC',
+      orderBy: 'id DESC',
     );
 
-    return maps.map((map) => Transaction.fromJson(_mapDbRow(map))).toList();
+    final allTxns = maps.map((map) => Transaction.fromJson(_mapDbRow(map))).toList();
+
+    if (startDate == null && endDate == null) {
+      return allTxns;
+    }
+
+    final startOfDay = startDate != null ? DateTime(startDate.year, startDate.month, startDate.day, 0, 0, 0) : null;
+    final endOfDay = endDate != null ? DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999) : null;
+
+    return allTxns.where((txn) {
+      final parsed = DateTime.tryParse(txn.createdAt);
+      if (parsed == null) return false;
+      final localDate = parsed.toLocal();
+
+      if (startOfDay != null && localDate.isBefore(startOfDay)) {
+        return false;
+      }
+      if (endOfDay != null && localDate.isAfter(endOfDay)) {
+        return false;
+      }
+      return true;
+    }).toList();
   }
 
   Future<Customer?> getCustomerById(String customerId) async {
