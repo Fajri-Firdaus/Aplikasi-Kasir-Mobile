@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/start_transaction_card.dart';
@@ -6,16 +7,25 @@ import 'widgets/performance_summary.dart';
 import 'widgets/quick_actions_widget.dart';
 import 'widgets/mini_analytics_widget.dart';
 import 'widgets/inventory_alerts_widget.dart';
+import '../../reports/providers/reports_provider.dart';
 
-class DashboardPage extends StatefulWidget {
+class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  ConsumerState<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends ConsumerState<DashboardPage> {
   bool _notificationOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(reportsProvider.notifier).refresh();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -182,123 +182,129 @@ class ReportLocalRepository {
 
   // Home Performance - Today Summary
   Future<FinancialSummary> getTodaySummary() async {
-    final db = await _dbService.database;
-    
-    final countMaps = await db.rawQuery('''
-      SELECT COUNT(id) AS count
-      FROM transactions
-      WHERE DATE(created_at, 'localtime') = DATE('now', 'localtime') AND status != 'void'
-    ''');
-    final totalTxns = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
-
-    final maps = await db.rawQuery('''
-      SELECT 
-          COALESCE(SUM(t.total_amount), 0.0) AS penjualan_hari_ini,
-          COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS hpp_hari_ini
-      FROM transactions t
-      LEFT JOIN transaction_details td ON t.id = td.transaction_id
-      WHERE DATE(t.created_at, 'localtime') = DATE('now', 'localtime') AND t.status != 'void'
-    ''');
-
-    double revenue = 0.0;
-    double hpp = 0.0;
-
-    if (maps.isNotEmpty) {
-      revenue = (maps.first['penjualan_hari_ini'] as num? ?? 0.0).toDouble();
-      hpp = (maps.first['hpp_hari_ini'] as num? ?? 0.0).toDouble();
-    }
-
-    return FinancialSummary(
-      totalRevenue: revenue,
-      totalHpp: hpp,
-      totalProfit: revenue - hpp,
-      totalTransactions: totalTxns,
-    );
+    final now = DateTime.now();
+    return getFinancialSummary(now, now);
   }
 
   Future<FinancialSummary> getFinancialSummary(DateTime start, DateTime end) async {
     final db = await _dbService.database;
-    final startStr = '${start.toIso8601String().split('T').first} 00:00:00';
-    final endStr = '${end.toIso8601String().split('T').first} 23:59:59';
 
-    final countMaps = await db.rawQuery('''
-      SELECT COUNT(id) AS count
-      FROM transactions
-      WHERE DATETIME(created_at, 'localtime') BETWEEN ? AND ? AND status != 'void'
-    ''', [startStr, endStr]);
-    final totalTxns = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
+    final startOfDay = DateTime(start.year, start.month, start.day, 0, 0, 0);
+    final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
 
-    final maps = await db.rawQuery('''
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
-          COALESCE(SUM(t.total_amount), 0.0) AS total_pendapatan,
-          COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS total_hpp
+        t.id,
+        t.created_at,
+        t.status,
+        t.total_amount,
+        COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS total_hpp
       FROM transactions t
       LEFT JOIN transaction_details td ON t.id = td.transaction_id
-      WHERE DATETIME(t.created_at, 'localtime') BETWEEN ? AND ? AND t.status != 'void'
-    ''', [startStr, endStr]);
+      WHERE t.status != 'void'
+      GROUP BY t.id
+    ''');
 
     double revenue = 0.0;
     double hpp = 0.0;
+    int count = 0;
 
-    if (maps.isNotEmpty) {
-      revenue = (maps.first['total_pendapatan'] as num? ?? 0.0).toDouble();
-      hpp = (maps.first['total_hpp'] as num? ?? 0.0).toDouble();
+    for (final row in maps) {
+      final rawCreated = row['created_at']?.toString();
+      if (rawCreated == null) continue;
+
+      final parsed = (rawCreated.contains('T') || rawCreated.endsWith('Z'))
+          ? DateTime.tryParse(rawCreated)?.toLocal()
+          : DateTime.tryParse('${rawCreated.replaceAll(' ', 'T')}Z')?.toLocal();
+      if (parsed == null) continue;
+
+      if (parsed.isAfter(startOfDay.subtract(const Duration(milliseconds: 1))) &&
+          parsed.isBefore(endOfDay.add(const Duration(milliseconds: 1)))) {
+        revenue += (row['total_amount'] as num? ?? 0.0).toDouble();
+        hpp += (row['total_hpp'] as num? ?? 0.0).toDouble();
+        count++;
+      }
     }
 
     return FinancialSummary(
       totalRevenue: revenue,
       totalHpp: hpp,
       totalProfit: revenue - hpp,
-      totalTransactions: totalTxns,
+      totalTransactions: count,
     );
   }
 
   Future<List<HourlySales>> getTodayHourlySales() async {
     final db = await _dbService.database;
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT 
-          STRFTIME('%H:00', created_at, 'localtime') AS jam,
-          COALESCE(SUM(total_amount), 0.0) AS total_omzet
+      SELECT id, created_at, total_amount, status
       FROM transactions
-      WHERE DATE(created_at, 'localtime') = DATE('now', 'localtime') AND status != 'void'
-      GROUP BY jam
-      ORDER BY jam ASC
+      WHERE status != 'void'
     ''');
 
-    return maps.map((row) {
-      return HourlySales(
-        hour: (row['jam'] ?? '00:00') as String,
-        totalSales: (row['total_omzet'] as num? ?? 0.0).toDouble(),
-      );
-    }).toList();
+    final Map<int, double> hourlyMap = {};
+
+    for (final row in maps) {
+      final rawCreated = row['created_at']?.toString();
+      if (rawCreated == null) continue;
+
+      final parsed = (rawCreated.contains('T') || rawCreated.endsWith('Z'))
+          ? DateTime.tryParse(rawCreated)?.toLocal()
+          : DateTime.tryParse('${rawCreated.replaceAll(' ', 'T')}Z')?.toLocal();
+      if (parsed == null) continue;
+
+      if (parsed.isAfter(startOfDay.subtract(const Duration(milliseconds: 1))) &&
+          parsed.isBefore(endOfDay.add(const Duration(milliseconds: 1)))) {
+        final hour = parsed.hour;
+        hourlyMap[hour] = (hourlyMap[hour] ?? 0.0) + (row['total_amount'] as num? ?? 0.0).toDouble();
+      }
+    }
+
+    final List<HourlySales> result = [];
+    hourlyMap.forEach((hour, sales) {
+      final hourStr = '${hour.toString().padLeft(2, '0')}:00';
+      result.add(HourlySales(hour: hourStr, totalSales: sales));
+    });
+    return result;
   }
 
   Future<List<DailySales>> getWeeklyDailySales(DateTime monday, DateTime sunday) async {
     final db = await _dbService.database;
-    final startStr = monday.toIso8601String().split('T').first;
-    final endStr = sunday.toIso8601String().split('T').first;
+    final startOfDay = DateTime(monday.year, monday.month, monday.day, 0, 0, 0);
+    final endOfDay = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59, 999);
 
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT 
-          DATE(created_at, 'localtime') AS t_date,
-          COALESCE(SUM(total_amount), 0.0) AS total_omzet
+      SELECT id, created_at, total_amount, status
       FROM transactions
-      WHERE DATE(created_at, 'localtime') BETWEEN ? AND ? AND status != 'void'
-      GROUP BY t_date
-    ''', [startStr, endStr]);
+      WHERE status != 'void'
+    ''');
 
     final Map<String, double> salesMap = {};
+
     for (final row in maps) {
-      final d = row['t_date'] as String?;
-      if (d != null) {
-        salesMap[d] = (row['total_omzet'] as num? ?? 0.0).toDouble();
+      final rawCreated = row['created_at']?.toString();
+      if (rawCreated == null) continue;
+
+      final parsed = (rawCreated.contains('T') || rawCreated.endsWith('Z'))
+          ? DateTime.tryParse(rawCreated)?.toLocal()
+          : DateTime.tryParse('${rawCreated.replaceAll(' ', 'T')}Z')?.toLocal();
+      if (parsed == null) continue;
+
+      if (parsed.isAfter(startOfDay.subtract(const Duration(milliseconds: 1))) &&
+          parsed.isBefore(endOfDay.add(const Duration(milliseconds: 1)))) {
+        final dateKey = '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
+        salesMap[dateKey] = (salesMap[dateKey] ?? 0.0) + (row['total_amount'] as num? ?? 0.0).toDouble();
       }
     }
 
     const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
     return List.generate(7, (index) {
       final dayDate = monday.add(Duration(days: index));
-      final dateStr = dayDate.toIso8601String().split('T').first;
+      final dateStr = '${dayDate.year}-${dayDate.month.toString().padLeft(2, '0')}-${dayDate.day.toString().padLeft(2, '0')}';
       return DailySales(
         date: dayDate,
         dayName: dayNames[index],
@@ -309,26 +315,30 @@ class ReportLocalRepository {
 
   Future<List<WeeklySales>> getMonthlyWeeklySales(DateTime monthStart, DateTime monthEnd) async {
     final db = await _dbService.database;
-    final startStr = monthStart.toIso8601String().split('T').first;
-    final endStr = monthEnd.toIso8601String().split('T').first;
+    final startOfDay = DateTime(monthStart.year, monthStart.month, monthStart.day, 0, 0, 0);
+    final endOfDay = DateTime(monthEnd.year, monthEnd.month, monthEnd.day, 23, 59, 59, 999);
 
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT 
-          DATE(created_at, 'localtime') AS t_date,
-          COALESCE(SUM(total_amount), 0.0) AS total_omzet
+      SELECT id, created_at, total_amount, status
       FROM transactions
-      WHERE DATE(created_at, 'localtime') BETWEEN ? AND ? AND status != 'void'
-      GROUP BY t_date
-    ''', [startStr, endStr]);
+      WHERE status != 'void'
+    ''');
 
     final Map<int, double> daySalesMap = {};
+
     for (final row in maps) {
-      final dStr = row['t_date'] as String?;
-      if (dStr != null) {
-        final parsed = DateTime.tryParse(dStr);
-        if (parsed != null) {
-          daySalesMap[parsed.day] = (row['total_omzet'] as num? ?? 0.0).toDouble();
-        }
+      final rawCreated = row['created_at']?.toString();
+      if (rawCreated == null) continue;
+
+      final parsed = (rawCreated.contains('T') || rawCreated.endsWith('Z'))
+          ? DateTime.tryParse(rawCreated)?.toLocal()
+          : DateTime.tryParse('${rawCreated.replaceAll(' ', 'T')}Z')?.toLocal();
+      if (parsed == null) continue;
+
+      if (parsed.isAfter(startOfDay.subtract(const Duration(milliseconds: 1))) &&
+          parsed.isBefore(endOfDay.add(const Duration(milliseconds: 1)))) {
+        final day = parsed.day;
+        daySalesMap[day] = (daySalesMap[day] ?? 0.0) + (row['total_amount'] as num? ?? 0.0).toDouble();
       }
     }
 
@@ -372,35 +382,67 @@ class ReportLocalRepository {
 
   Future<List<TopProduct>> getTopProducts(DateTime start, DateTime end) async {
     final db = await _dbService.database;
-    final startStr = '${start.toIso8601String().split('T').first} 00:00:00';
-    final endStr = '${end.toIso8601String().split('T').first} 23:59:59';
+    final startOfDay = DateTime(start.year, start.month, start.day, 0, 0, 0);
+    final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
+
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
-          p.name,
-          COALESCE(sales.total_terjual, 0) AS total_terjual,
-          COALESCE(sales.total_revenue, 0.0) AS total_revenue
+        p.id AS product_id,
+        p.name,
+        td.quantity,
+        td.sell_price_at_sale,
+        t.created_at,
+        t.status
       FROM products p
-      LEFT JOIN (
-          SELECT 
-              td.product_id,
-              SUM(td.quantity) AS total_terjual,
-              SUM(td.quantity * td.sell_price_at_sale) AS total_revenue
-          FROM transaction_details td
-          JOIN transactions t ON td.transaction_id = t.id
-          WHERE t.status != 'void' AND DATETIME(t.created_at, 'localtime') BETWEEN ? AND ?
-          GROUP BY td.product_id
-      ) sales ON p.id = sales.product_id
+      LEFT JOIN transaction_details td ON p.id = td.product_id
+      LEFT JOIN transactions t ON td.transaction_id = t.id
       WHERE p.is_active = 1
-      ORDER BY total_terjual DESC, p.name ASC
-    ''', [startStr, endStr]);
+    ''');
 
-    return maps.map((row) {
+    final Map<String, Map<String, dynamic>> productStats = {};
+
+    for (final row in maps) {
+      final name = (row['name'] ?? 'Unknown') as String;
+
+      if (!productStats.containsKey(name)) {
+        productStats[name] = {'name': name, 'totalSold': 0, 'revenue': 0.0};
+      }
+
+      final status = row['status'] as String?;
+      if (status == 'void') continue;
+
+      final rawCreated = row['created_at']?.toString();
+      if (rawCreated == null) continue;
+
+      final parsed = (rawCreated.contains('T') || rawCreated.endsWith('Z'))
+          ? DateTime.tryParse(rawCreated)?.toLocal()
+          : DateTime.tryParse('${rawCreated.replaceAll(' ', 'T')}Z')?.toLocal();
+      if (parsed == null) continue;
+
+      if (parsed.isAfter(startOfDay.subtract(const Duration(milliseconds: 1))) &&
+          parsed.isBefore(endOfDay.add(const Duration(milliseconds: 1)))) {
+        final qty = row['quantity'] as int? ?? 0;
+        final price = (row['sell_price_at_sale'] as num? ?? 0.0).toDouble();
+        productStats[name]!['totalSold'] = (productStats[name]!['totalSold'] as int) + qty;
+        productStats[name]!['revenue'] = (productStats[name]!['revenue'] as double) + (qty * price);
+      }
+    }
+
+    final List<TopProduct> list = productStats.values.map((map) {
       return TopProduct(
-        name: (row['name'] ?? 'Unknown') as String,
-        totalSold: (row['total_terjual'] as int? ?? 0),
-        revenue: (row['total_revenue'] as num? ?? 0.0).toDouble(),
+        name: map['name'] as String,
+        totalSold: map['totalSold'] as int,
+        revenue: map['revenue'] as double,
       );
     }).toList();
+
+    list.sort((a, b) {
+      final cmp = b.totalSold.compareTo(a.totalSold);
+      if (cmp != 0) return cmp;
+      return a.name.compareTo(b.name);
+    });
+
+    return list;
   }
 
   Future<List<LowStockItem>> getLowStockProducts() async {
