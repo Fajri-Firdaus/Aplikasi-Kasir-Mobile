@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/reports_provider.dart';
+import '../providers/transactions_report_provider.dart';
 import '../data/report_local_repository.dart';
 import '../../products/providers/product_provider.dart';
 import '../../products/data/product.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../transactions/data/transaction_local_repository.dart';
+import 'widgets/transaction_detail_modal.dart';
 
 class ReportsPage extends ConsumerStatefulWidget {
   const ReportsPage({super.key});
@@ -211,7 +215,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       Row(children: [
         Expanded(child: _statCard('Pendapatan', 'Rp ${_formatCurrency(reportData.totalRevenue.toInt())}', Icons.trending_up, const Color(0xFF16A34A), const Color(0xFFDCFCE7))),
         const SizedBox(width: 10),
-        Expanded(child: _statCard('Pengeluaran', 'Rp ${_formatCurrency(reportData.totalExpense.toInt())}', Icons.trending_down, const Color(0xFFDC2626), const Color(0xFFFEE2E2))),
+        Expanded(child: _statCard('HPP', 'Rp ${_formatCurrency(reportData.totalHpp.toInt())}', Icons.trending_down, const Color(0xFFDC2626), const Color(0xFFFEE2E2))),
       ]),
       const SizedBox(height: 10),
       Row(children: [
@@ -220,7 +224,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         Expanded(child: _statCard('Transaksi', '${reportData.totalTransactions}', Icons.receipt_long_outlined, const Color(0xFF7C3AED), const Color(0xFFEDE9FE))),
       ]),
       const SizedBox(height: 16),
-      _buildRevenueChart(reportData),
+      _buildTodayRevenueChart(reportData),
+      const SizedBox(height: 14),
+      _buildWeeklyRevenueChart(reportData),
+      const SizedBox(height: 14),
+      _buildMonthlyRevenueChart(reportData),
+      const SizedBox(height: 16),
+      _buildRecentTransactionsSection(),
     ]);
   }
 
@@ -1556,7 +1566,21 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     );
   }
 
-  Widget _buildRevenueChart(ReportData reportData) {
+  String _formatDateShort(DateTime dt) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  String _formatDateFull(DateTime dt) {
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    final dayName = days[dt.weekday - 1];
+    final monthName = months[dt.month - 1];
+    return '$dayName, ${dt.day} $monthName ${dt.year}';
+  }
+
+  Widget _buildTodayRevenueChart(ReportData reportData) {
+    final now = DateTime.now();
     final chartData = reportData.hourlySales;
     final maxVal = chartData.isEmpty 
         ? 1.0 
@@ -1565,40 +1589,322 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Tren Pendapatan Hari Ini', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-        const Text('Per jam', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Tren Pendapatan Hari Ini', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 12, color: Color(0xFF6B7280)),
+                    const SizedBox(width: 4),
+                    Text(_formatDateFull(now), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF6B7280))),
+                  ],
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: const Color(0xFFDBEAFE), borderRadius: BorderRadius.circular(6)),
+              child: const Text('Per Jam', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
-        SizedBox(height: 80, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: List.generate(chartData.length, (i) {
-          final h = chartData[i];
-          final hourLabel = h.hour.split(':').first;
-          final isLabelVisible = i % 4 == 3 || i == 0;
-          return Expanded(child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1.5),
-            child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-              Flexible(child: FractionallySizedBox(
-                heightFactor: h.totalSales / divisor,
-                child: Container(decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6),
-                  borderRadius: BorderRadius.circular(2),
-                )),
-              )),
-              const SizedBox(height: 4),
-              Text(
-                isLabelVisible ? hourLabel : '',
-                style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
-              ),
-            ]),
-          ));
-        }))),
+        SizedBox(
+          height: 90,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(chartData.length, (i) {
+              final h = chartData[i];
+              final hourLabel = h.hour.split(':').first;
+              final isLabelVisible = i % 4 == 3 || i == 0;
+              final heightFactor = (h.totalSales / divisor).clamp(0.0, 1.0);
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: FractionallySizedBox(
+                            heightFactor: heightFactor == 0 ? 0.04 : heightFactor,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: heightFactor == 0 ? const Color(0xFFE5E7EB) : const Color(0xFF2563EB),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        isLabelVisible ? hourLabel : '',
+                        style: const TextStyle(fontSize: 9, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
         const SizedBox(height: 12),
-        const Divider(color: Color(0xFFE5E7EB), height: 1),
+        const Divider(color: Color(0xFFF3F4F6), height: 1),
         const SizedBox(height: 10),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Total Hari Ini', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-          Text('Rp ${_formatCurrency(reportData.totalRevenue.toInt())}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
-        ]),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Total Pendapatan Hari Ini', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
+            Text('Rp ${_formatCurrency(reportData.totalRevenue.toInt())}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildWeeklyRevenueChart(ReportData reportData) {
+    final now = DateTime.now();
+    final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final sunday = monday.add(const Duration(days: 6));
+    final chartData = reportData.weeklyDailySales;
+    final maxVal = chartData.isEmpty
+        ? 1.0
+        : chartData.map((d) => d.totalSales).reduce((a, b) => a > b ? a : b);
+    final divisor = maxVal > 0 ? maxVal : 1.0;
+
+    final dateRangeStr = '${_formatDateShort(monday)} - ${_formatDateShort(sunday)}';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Tren Pendapatan Minggu Ini', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(Icons.date_range, size: 12, color: Color(0xFF059669)),
+                      const SizedBox(width: 4),
+                      Text('Senin - Minggu ($dateRangeStr)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF059669))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: const Color(0xFFD1FAE5), borderRadius: BorderRadius.circular(6)),
+              child: const Text('Per Hari', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF059669))),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 100,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(chartData.length, (i) {
+              final d = chartData[i];
+              final heightFactor = (d.totalSales / divisor).clamp(0.0, 1.0);
+              final isToday = d.date.year == now.year && d.date.month == now.month && d.date.day == now.day;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (d.totalSales > 0)
+                        Text(
+                          '${(d.totalSales / 1000).toStringAsFixed(0)}k',
+                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: isToday ? const Color(0xFF059669) : const Color(0xFF6B7280)),
+                        )
+                      else
+                        const SizedBox(height: 10),
+                      const SizedBox(height: 2),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: FractionallySizedBox(
+                            heightFactor: heightFactor == 0 ? 0.04 : heightFactor,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: heightFactor == 0
+                                    ? const Color(0xFFE5E7EB)
+                                    : (isToday ? const Color(0xFF059669) : const Color(0xFF10B981)),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        d.dayName,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isToday ? const Color(0xFF059669) : const Color(0xFF374151),
+                          fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Divider(color: Color(0xFFF3F4F6), height: 1),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Total Pendapatan Minggu Ini', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
+            Text('Rp ${_formatCurrency(reportData.weeklyTotalRevenue.toInt())}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF059669))),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildMonthlyRevenueChart(ReportData reportData) {
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 0);
+    final chartData = reportData.monthlyWeeklySales;
+    final maxVal = chartData.isEmpty
+        ? 1.0
+        : chartData.map((w) => w.totalSales).reduce((a, b) => a > b ? a : b);
+    final divisor = maxVal > 0 ? maxVal : 1.0;
+
+    final dateRangeStr = '${_formatDateShort(monthStart)} - ${_formatDateShort(monthEnd)}';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Tren Pendapatan Bulan Ini', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_month, size: 12, color: Color(0xFF4F46E5)),
+                      const SizedBox(width: 4),
+                      Text(dateRangeStr, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(6)),
+              child: const Text('Per Minggu', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5))),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 100,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(chartData.length, (i) {
+              final w = chartData[i];
+              final heightFactor = (w.totalSales / divisor).clamp(0.0, 1.0);
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (w.totalSales > 0)
+                        Text(
+                          '${(w.totalSales / 1000).toStringAsFixed(0)}k',
+                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+                        )
+                      else
+                        const SizedBox(height: 10),
+                      const SizedBox(height: 2),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: FractionallySizedBox(
+                            heightFactor: heightFactor == 0 ? 0.04 : heightFactor,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: heightFactor == 0 ? const Color(0xFFE5E7EB) : const Color(0xFF4F46E5),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        w.label,
+                        style: const TextStyle(fontSize: 9, color: Color(0xFF374151), fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Divider(color: Color(0xFFF3F4F6), height: 1),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Total Pendapatan Bulan Ini', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
+            Text('Rp ${_formatCurrency(reportData.monthlyTotalRevenue.toInt())}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF4F46E5))),
+          ],
+        ),
       ]),
     );
   }
@@ -1612,5 +1918,184 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
   String _formatCurrency(int val) {
     return val.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+  }
+
+  String _formatTime(String isoStr) {
+    final parsed = DateTime.tryParse(isoStr);
+    if (parsed == null) return isoStr;
+    final local = parsed.toLocal();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    final dayStr = local.day.toString().padLeft(2, '0');
+    final monthStr = months[local.month - 1];
+    final yearStr = local.year;
+    final hourStr = local.hour.toString().padLeft(2, '0');
+    final minStr = local.minute.toString().padLeft(2, '0');
+    return '$dayStr $monthStr $yearStr, $hourStr:$minStr';
+  }
+
+  Map<String, dynamic> _getPaymentBadge(String method) {
+    final m = method.toLowerCase();
+    if (m == 'cash' || m == 'tunai') {
+      return {'label': 'Tunai', 'icon': Icons.payments_outlined, 'color': const Color(0xFF16A34A), 'bg': const Color(0xFFDCFCE7)};
+    } else if (m == 'qris') {
+      return {'label': 'QRIS', 'icon': Icons.qr_code_scanner_outlined, 'color': const Color(0xFF2563EB), 'bg': const Color(0xFFDBEAFE)};
+    } else if (m == 'transfer') {
+      return {'label': 'Transfer', 'icon': Icons.account_balance_outlined, 'color': const Color(0xFF7C3AED), 'bg': const Color(0xFFEDE9FE)};
+    } else {
+      return {'label': 'Debit', 'icon': Icons.credit_card_outlined, 'color': const Color(0xFFD97706), 'bg': const Color(0xFFFEF3C7)};
+    }
+  }
+
+  Widget _buildRecentTransactionsSection() {
+    final recentAsync = ref.watch(recentTransactionsProvider);
+    final repo = ref.watch(transactionRepositoryProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.history, size: 18, color: Color(0xFF2563EB)),
+                SizedBox(width: 8),
+                Text('10 Transaksi Terakhir', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+              ],
+            ),
+            InkWell(
+              onTap: () => context.push('/reports/all-transactions'),
+              borderRadius: BorderRadius.circular(6),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Lihat Semua', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+                    SizedBox(width: 2),
+                    Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xFF2563EB)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        recentAsync.when(
+          data: (txns) {
+            if (txns.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: const Center(
+                  child: Text('Belum ada transaksi tercatat', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+                ),
+              );
+            }
+
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2)),
+                ],
+              ),
+              child: Column(
+                children: txns.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final txn = entry.value;
+                  final isVoid = txn.status == 'void';
+                  final badge = _getPaymentBadge(txn.paymentMethod);
+
+                  return Column(
+                    children: [
+                      InkWell(
+                        onTap: () => showTransactionDetailModal(context, txn, repo),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: isVoid ? const Color(0xFFFEE2E2) : badge['bg'] as Color,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isVoid ? Icons.block : badge['icon'] as IconData,
+                                  color: isVoid ? const Color(0xFFDC2626) : badge['color'] as Color,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text('#TRX-${txn.id.padLeft(4, '0')}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF111827))),
+                                        if (isVoid) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(4)),
+                                            child: const Text('VOID', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFFDC2626))),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(_formatTime(txn.createdAt), style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'Rp ${_formatCurrency(txn.totalAmount.toInt())}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      color: isVoid ? const Color(0xFF9CA3AF) : const Color(0xFF2563EB),
+                                      decoration: isVoid ? TextDecoration.lineThrough : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: badge['bg'] as Color,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(badge['label'] as String, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: badge['color'] as Color)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (idx < txns.length - 1) const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                    ],
+                  );
+                }).toList(),
+              ),
+            );
+          },
+          loading: () => const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
+          error: (e, s) => Center(child: Text('Gagal memuat transaksi: $e', style: const TextStyle(color: Colors.red, fontSize: 12))),
+        ),
+      ],
+    );
   }
 }

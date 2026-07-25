@@ -6,11 +6,34 @@ import 'transaction.dart';
 import 'transaction_detail.dart';
 import 'cart_item.dart';
 import '../../auth/data/shift.dart';
+import '../../customers/data/customer.dart';
 
 final transactionRepositoryProvider = Provider<TransactionLocalRepository>((ref) {
   final dbService = ref.watch(localDatabaseServiceProvider);
   return TransactionLocalRepository(dbService);
 });
+
+class TransactionItemDetail {
+  final String id;
+  final String transactionId;
+  final String productId;
+  final String productName;
+  final int quantity;
+  final double buyPriceAtSale;
+  final double sellPriceAtSale;
+
+  TransactionItemDetail({
+    required this.id,
+    required this.transactionId,
+    required this.productId,
+    required this.productName,
+    required this.quantity,
+    required this.buyPriceAtSale,
+    required this.sellPriceAtSale,
+  });
+
+  double get subtotal => quantity * sellPriceAtSale;
+}
 
 class TransactionLocalRepository implements RepositoryInterface<Transaction> {
   final LocalDatabaseService _dbService;
@@ -228,6 +251,99 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
         sellPriceAtSale: (map['sell_price_at_sale'] as num).toDouble(),
       );
     }).toList();
+  }
+
+  Future<List<TransactionItemDetail>> getTransactionItemDetails(String transactionId) async {
+    final db = await _dbService.database;
+    final intTxnId = int.tryParse(transactionId);
+    if (intTxnId == null) return [];
+
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+        td.id,
+        td.transaction_id,
+        td.product_id,
+        td.quantity,
+        td.buy_price_at_sale,
+        td.sell_price_at_sale,
+        COALESCE(p.name, 'Produk') AS product_name
+      FROM transaction_details td
+      LEFT JOIN products p ON td.product_id = p.id
+      WHERE td.transaction_id = ?
+    ''', [intTxnId]);
+
+    return maps.map((map) {
+      return TransactionItemDetail(
+        id: map['id'].toString(),
+        transactionId: map['transaction_id'].toString(),
+        productId: map['product_id'].toString(),
+        productName: map['product_name'] as String,
+        quantity: map['quantity'] as int,
+        buyPriceAtSale: (map['buy_price_at_sale'] as num).toDouble(),
+        sellPriceAtSale: (map['sell_price_at_sale'] as num).toDouble(),
+      );
+    }).toList();
+  }
+
+  Future<List<Transaction>> getRecentTransactions({int limit = 10}) async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'transactions',
+      orderBy: 'created_at DESC',
+      limit: limit,
+    );
+    return maps.map((map) => Transaction.fromJson(_mapDbRow(map))).toList();
+  }
+
+  Future<List<Transaction>> getFilteredTransactions({DateTime? startDate, DateTime? endDate}) async {
+    final db = await _dbService.database;
+    String? whereClause;
+    List<dynamic>? whereArgs;
+
+    if (startDate != null && endDate != null) {
+      final startStr = '${startDate.toIso8601String().split('T').first} 00:00:00';
+      final endStr = '${endDate.toIso8601String().split('T').first} 23:59:59';
+      whereClause = "DATETIME(created_at, 'localtime') BETWEEN ? AND ?";
+      whereArgs = [startStr, endStr];
+    } else if (startDate != null) {
+      final startStr = '${startDate.toIso8601String().split('T').first} 00:00:00';
+      whereClause = "DATETIME(created_at, 'localtime') >= ?";
+      whereArgs = [startStr];
+    } else if (endDate != null) {
+      final endStr = '${endDate.toIso8601String().split('T').first} 23:59:59';
+      whereClause = "DATETIME(created_at, 'localtime') <= ?";
+      whereArgs = [endStr];
+    }
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'transactions',
+      where: whereClause,
+      whereArgs: whereArgs,
+      orderBy: 'created_at DESC',
+    );
+
+    return maps.map((map) => Transaction.fromJson(_mapDbRow(map))).toList();
+  }
+
+  Future<Customer?> getCustomerById(String customerId) async {
+    final db = await _dbService.database;
+    final intId = int.tryParse(customerId);
+    if (intId == null) return null;
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      where: 'id = ?',
+      whereArgs: [intId],
+    );
+
+    if (maps.isEmpty) return null;
+    final row = maps.first;
+    return Customer(
+      id: row['id'].toString(),
+      name: row['name'] as String,
+      phone: row['phone']?.toString(),
+      createdAt: row['created_at']?.toString(),
+    );
   }
 
   // --- Shifts Management ---

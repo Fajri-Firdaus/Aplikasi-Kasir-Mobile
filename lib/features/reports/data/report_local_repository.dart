@@ -27,6 +27,28 @@ class HourlySales {
   HourlySales({required this.hour, required this.totalSales});
 }
 
+class DailySales {
+  final DateTime date;
+  final String dayName;
+  final double totalSales;
+
+  DailySales({
+    required this.date,
+    required this.dayName,
+    required this.totalSales,
+  });
+}
+
+class WeeklySales {
+  final String label;
+  final double totalSales;
+
+  WeeklySales({
+    required this.label,
+    required this.totalSales,
+  });
+}
+
 class TopProduct {
   final String name;
   final int totalSold;
@@ -249,6 +271,103 @@ class ReportLocalRepository {
         totalSales: (row['total_omzet'] as num? ?? 0.0).toDouble(),
       );
     }).toList();
+  }
+
+  Future<List<DailySales>> getWeeklyDailySales(DateTime monday, DateTime sunday) async {
+    final db = await _dbService.database;
+    final startStr = monday.toIso8601String().split('T').first;
+    final endStr = sunday.toIso8601String().split('T').first;
+
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+          DATE(created_at, 'localtime') AS t_date,
+          COALESCE(SUM(total_amount), 0.0) AS total_omzet
+      FROM transactions
+      WHERE DATE(created_at, 'localtime') BETWEEN ? AND ? AND status != 'void'
+      GROUP BY t_date
+    ''', [startStr, endStr]);
+
+    final Map<String, double> salesMap = {};
+    for (final row in maps) {
+      final d = row['t_date'] as String?;
+      if (d != null) {
+        salesMap[d] = (row['total_omzet'] as num? ?? 0.0).toDouble();
+      }
+    }
+
+    const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    return List.generate(7, (index) {
+      final dayDate = monday.add(Duration(days: index));
+      final dateStr = dayDate.toIso8601String().split('T').first;
+      return DailySales(
+        date: dayDate,
+        dayName: dayNames[index],
+        totalSales: salesMap[dateStr] ?? 0.0,
+      );
+    });
+  }
+
+  Future<List<WeeklySales>> getMonthlyWeeklySales(DateTime monthStart, DateTime monthEnd) async {
+    final db = await _dbService.database;
+    final startStr = monthStart.toIso8601String().split('T').first;
+    final endStr = monthEnd.toIso8601String().split('T').first;
+
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+          DATE(created_at, 'localtime') AS t_date,
+          COALESCE(SUM(total_amount), 0.0) AS total_omzet
+      FROM transactions
+      WHERE DATE(created_at, 'localtime') BETWEEN ? AND ? AND status != 'void'
+      GROUP BY t_date
+    ''', [startStr, endStr]);
+
+    final Map<int, double> daySalesMap = {};
+    for (final row in maps) {
+      final dStr = row['t_date'] as String?;
+      if (dStr != null) {
+        final parsed = DateTime.tryParse(dStr);
+        if (parsed != null) {
+          daySalesMap[parsed.day] = (row['total_omzet'] as num? ?? 0.0).toDouble();
+        }
+      }
+    }
+
+    final totalDaysInMonth = monthEnd.day;
+    final List<WeeklySales> buckets = [];
+
+    double w1 = 0.0;
+    for (int d = 1; d <= 7 && d <= totalDaysInMonth; d++) {
+      w1 += daySalesMap[d] ?? 0.0;
+    }
+    buckets.add(WeeklySales(label: 'Mgg 1 (1-7)', totalSales: w1));
+
+    double w2 = 0.0;
+    for (int d = 8; d <= 14 && d <= totalDaysInMonth; d++) {
+      w2 += daySalesMap[d] ?? 0.0;
+    }
+    buckets.add(WeeklySales(label: 'Mgg 2 (8-14)', totalSales: w2));
+
+    double w3 = 0.0;
+    for (int d = 15; d <= 21 && d <= totalDaysInMonth; d++) {
+      w3 += daySalesMap[d] ?? 0.0;
+    }
+    buckets.add(WeeklySales(label: 'Mgg 3 (15-21)', totalSales: w3));
+
+    double w4 = 0.0;
+    for (int d = 22; d <= 28 && d <= totalDaysInMonth; d++) {
+      w4 += daySalesMap[d] ?? 0.0;
+    }
+    buckets.add(WeeklySales(label: 'Mgg 4 (22-28)', totalSales: w4));
+
+    if (totalDaysInMonth > 28) {
+      double w5 = 0.0;
+      for (int d = 29; d <= totalDaysInMonth; d++) {
+        w5 += daySalesMap[d] ?? 0.0;
+      }
+      buckets.add(WeeklySales(label: 'Mgg 5 (29-$totalDaysInMonth)', totalSales: w5));
+    }
+
+    return buckets;
   }
 
   Future<List<TopProduct>> getTopProducts(DateTime start, DateTime end) async {
