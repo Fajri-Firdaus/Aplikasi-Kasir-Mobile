@@ -70,7 +70,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
   static const _tabs = [
     {'key': 'financial', 'label': 'Keuangan', 'icon': Icons.attach_money},
-    {'key': 'product', 'label': 'Produk', 'icon': Icons.inventory_2_outlined},
     {'key': 'inventory', 'label': 'Inventaris', 'icon': Icons.warehouse_outlined},
     {'key': 'staff', 'label': 'SDM', 'icon': Icons.people_outline},
     {'key': 'customer', 'label': 'Pelanggan', 'icon': Icons.person_outline},
@@ -104,11 +103,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                   ),
                   SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
-                    child: _buildProductTab(reportData),
-                  ),
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: _buildInventoryTab(ref.watch(productsProvider)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildProductTab(reportData),
+                        const SizedBox(height: 20),
+                        _buildInventoryTab(ref.watch(productsProvider)),
+                      ],
+                    ),
                   ),
                   SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -250,20 +252,26 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         ),
       ]);
     }
+    final displayedTop = top.take(10).toList();
     return Column(children: [
-      _sectionTitle('Performa Produk & Menu', Icons.inventory_2_outlined, const Color(0xFF16A34A)),
+      _sectionTitle(
+        'Performa Produk & Menu',
+        Icons.inventory_2_outlined,
+        const Color(0xFF16A34A),
+        onActionTap: () => context.go('/reports/all-product-performance'),
+      ),
       const SizedBox(height: 12),
       Container(
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
         child: Column(
-          children: top.asMap().entries.map((e) {
+          children: displayedTop.asMap().entries.map((e) {
             final i = e.key;
             final p = e.value;
             final colors = [const Color(0xFFFBBF24), const Color(0xFFD1D5DB), const Color(0xFFFB923C), const Color(0xFF93C5FD), const Color(0xFFC4B5FD)];
             final color = colors[i % colors.length];
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(border: i < top.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF3F4F6))) : null),
+              decoration: BoxDecoration(border: i < displayedTop.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF3F4F6))) : null),
               child: Row(children: [
                 Container(width: 32, height: 32, decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                     child: Center(child: Text('${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)))),
@@ -298,12 +306,19 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       ]);
     }
 
+    final displayedProducts = sortedProducts.take(10).toList();
+
     return Column(children: [
-      _sectionTitle('Inventaris & Stok', Icons.warehouse_outlined, const Color(0xFFF97316)),
+      _sectionTitle(
+        'Inventaris & Stok',
+        Icons.warehouse_outlined,
+        const Color(0xFFF97316),
+        onActionTap: () => context.go('/reports/all-inventory-stock'),
+      ),
       const SizedBox(height: 12),
       Container(
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
-        child: Column(children: sortedProducts.asMap().entries.map((e) {
+        child: Column(children: displayedProducts.asMap().entries.map((e) {
           final i = e.key;
           final product = e.value;
           final stock = product.stock;
@@ -325,10 +340,11 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(border: i < sortedProducts.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF3F4F6))) : null),
+            decoration: BoxDecoration(border: i < displayedProducts.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF3F4F6))) : null),
             child: Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(product.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text('SKU: ${product.sku ?? '-'} • ${product.category}', style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
                 const SizedBox(height: 4),
                 ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(
                   value: (stock / min).clamp(0.0, 1.0), minHeight: 5,
@@ -1542,11 +1558,29 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     return buffer.toString();
   }
 
-  Widget _sectionTitle(String title, IconData icon, Color color) {
+  Widget _sectionTitle(String title, IconData icon, Color color, {VoidCallback? onActionTap, String? actionLabel}) {
     return Row(children: [
       Icon(icon, size: 18, color: color),
       const SizedBox(width: 8),
       Expanded(child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF111827)))),
+      if (onActionTap != null)
+        InkWell(
+          onTap: onActionTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: Row(
+              children: [
+                Text(
+                  actionLabel ?? 'Lihat Semua',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                ),
+                const SizedBox(width: 2),
+                const Icon(Icons.chevron_right, size: 16, color: Color(0xFF2563EB)),
+              ],
+            ),
+          ),
+        ),
     ]);
   }
 

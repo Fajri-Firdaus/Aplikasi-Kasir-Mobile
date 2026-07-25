@@ -10,6 +10,8 @@ import '../../features/transactions/presentation/transaction_page.dart';
 import '../../features/products/presentation/products_page.dart';
 import '../../features/reports/presentation/reports_page.dart';
 import '../../features/reports/presentation/all_transactions_page.dart';
+import '../../features/reports/presentation/all_product_performance_page.dart';
+import '../../features/reports/presentation/all_inventory_stock_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/settings/presentation/profile_page.dart';
 import '../../features/settings/presentation/store_settings_page.dart';
@@ -86,6 +88,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'all-transactions',
                     builder: (context, state) => const AllTransactionsPage(),
+                  ),
+                  GoRoute(
+                    path: 'all-product-performance',
+                    builder: (context, state) => const AllProductPerformancePage(),
+                  ),
+                  GoRoute(
+                    path: 'all-inventory-stock',
+                    builder: (context, state) => const AllInventoryStockPage(),
                   ),
                 ],
               ),
