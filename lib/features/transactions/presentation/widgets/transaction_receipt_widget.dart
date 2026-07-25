@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/transaction.dart';
 import '../../data/transaction_local_repository.dart';
 import '../../../customers/data/customer.dart';
+import '../../../settings/providers/settings_provider.dart';
 
 String formatReceiptTransactionId(String isoCreatedAt, int dailySequence) {
   final dt = DateTime.tryParse(isoCreatedAt)?.toLocal() ?? DateTime.now();
@@ -15,7 +17,7 @@ String formatReceiptTransactionId(String isoCreatedAt, int dailySequence) {
   return '$year$month$day$hour$minute$second-$seq';
 }
 
-class TransactionReceiptWidget extends StatelessWidget {
+class TransactionReceiptWidget extends ConsumerWidget {
   final Transaction transaction;
   final TransactionLocalRepository repo;
   final Customer? customer;
@@ -55,7 +57,8 @@ class TransactionReceiptWidget extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
     final isVoid = transaction.status == 'void';
     final formattedReceiptId = formatReceiptTransactionId(transaction.createdAt, dailySequence);
     final change = (transaction.cashReceived - transaction.totalAmount).clamp(0, double.infinity);
@@ -78,18 +81,39 @@ class TransactionReceiptWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header Toko
-          const Center(
+          // Header Toko (Diambil dari Pengaturan Toko)
+          Center(
             child: Text(
-              'MOBILE POS',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.2, color: Color(0xFF111827)),
+              settings.storeName.toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.2, color: Color(0xFF111827)),
+              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 2),
+          if (settings.storeAddress.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Center(
+              child: Text(
+                settings.storeAddress,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+          if (settings.storePhone.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Center(
+              child: Text(
+                'Telp: ${settings.storePhone}',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
           const Center(
             child: Text(
               'STRUK BUKTI PEMBAYARAN',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF6B7280), letterSpacing: 0.5),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151), letterSpacing: 0.5),
             ),
           ),
           const SizedBox(height: 12),
@@ -100,6 +124,14 @@ class TransactionReceiptWidget extends StatelessWidget {
           _receiptRow('No. Struk', formattedReceiptId, isBoldValue: true),
           const SizedBox(height: 4),
           _receiptRow('ID Shift', 'Shift #${transaction.shiftId}'),
+          const SizedBox(height: 4),
+          FutureBuilder<String>(
+            future: repo.getCashierNameByShiftId(transaction.shiftId),
+            builder: (context, snapshot) {
+              final cashierName = snapshot.data ?? 'Kasir';
+              return _receiptRow('Kasir', cashierName, isBoldValue: true);
+            },
+          ),
           const SizedBox(height: 4),
           _receiptRow('Waktu', _formatDateTime(transaction.createdAt)),
           const SizedBox(height: 4),
@@ -137,25 +169,25 @@ class TransactionReceiptWidget extends StatelessWidget {
           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
           const SizedBox(height: 10),
 
-          // Daftar Items
-          const Text('RINCIAN PEMBELIAN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF374151), letterSpacing: 0.5)),
-          const SizedBox(height: 8),
-
+          // Daftar Produk Transaksi
           FutureBuilder<List<TransactionItemDetail>>(
             future: repo.getTransactionItemDetails(transaction.id),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
-              }
               final items = snapshot.data ?? [];
               if (items.isEmpty) {
-                return const Text('Tidak ada detail item', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)));
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                    child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                );
               }
 
               return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: items.map((item) {
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    padding: const EdgeInsets.only(bottom: 6.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,14 +196,20 @@ class TransactionReceiptWidget extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(item.productName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-                              Text('${item.quantity} x Rp ${_formatCurrency(item.sellPriceAtSale.toInt())}', style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                              Text(
+                                item.productName,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF111827)),
+                              ),
+                              Text(
+                                '${item.quantity} x Rp ${_formatCurrency(item.sellPriceAtSale.toInt())}',
+                                style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+                              ),
                             ],
                           ),
                         ),
                         Text(
                           'Rp ${_formatCurrency(item.subtotal.toInt())}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF111827)),
                         ),
                       ],
                     ),
@@ -185,34 +223,25 @@ class TransactionReceiptWidget extends StatelessWidget {
           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
           const SizedBox(height: 10),
 
-          // Total & Payment Summary
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('TOTAL HARGA', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF111827))),
-              Text(
-                'Rp ${_formatCurrency(transaction.totalAmount.toInt())}',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF2563EB)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          _receiptRow('Metode Pembayaran', _getPaymentLabel(transaction.paymentMethod)),
-
-          if (transaction.paymentMethod.toLowerCase() == 'cash' || transaction.paymentMethod.toLowerCase() == 'tunai') ...[
-            const SizedBox(height: 4),
-            _receiptRow('Uang Diterima', 'Rp ${_formatCurrency(transaction.cashReceived.toInt())}'),
-            const SizedBox(height: 4),
-            _receiptRow('Kembalian', 'Rp ${_formatCurrency(change.toInt())}', valueColor: const Color(0xFF16A34A), isBoldValue: true),
-          ],
+          // Ringkasan Pembayaran
+          _receiptRow('Total', 'Rp ${_formatCurrency(transaction.totalAmount.toInt())}', isBoldValue: true),
+          const SizedBox(height: 4),
+          _receiptRow('Metode Bayar', _getPaymentLabel(transaction.paymentMethod)),
+          const SizedBox(height: 4),
+          _receiptRow('Tunai / Diterima', 'Rp ${_formatCurrency(transaction.cashReceived.toInt())}'),
+          const SizedBox(height: 4),
+          _receiptRow('Kembalian', 'Rp ${_formatCurrency(change.toInt())}', valueColor: const Color(0xFF16A34A), isBoldValue: true),
 
           const SizedBox(height: 14),
           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
-          const SizedBox(height: 10),
-          const Center(
+          const SizedBox(height: 12),
+
+          // Footer Struk (Diambil dari Pengaturan Toko)
+          Center(
             child: Text(
-              'Terima kasih atas kunjungan Anda!',
-              style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF6B7280)),
+              settings.receiptFooter.isNotEmpty ? settings.receiptFooter : 'Terima kasih atas kunjungan Anda!',
+              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF6B7280)),
+              textAlign: TextAlign.center,
             ),
           ),
         ],

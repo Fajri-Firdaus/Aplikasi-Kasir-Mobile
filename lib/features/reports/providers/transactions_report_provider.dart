@@ -102,9 +102,13 @@ class AllTransactionsNotifier extends Notifier<AllTransactionsState> {
 
     try {
       final txns = await _repository.getFilteredTransactions(startDate: start, endDate: end);
-      state = state.copyWith(transactions: txns, isLoading: false);
+      if (ref.mounted) {
+        state = state.copyWith(transactions: txns, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(transactions: [], isLoading: false);
+      if (ref.mounted) {
+        state = state.copyWith(transactions: [], isLoading: false);
+      }
     }
   }
 }

@@ -109,7 +109,13 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
     map['paymentMethod'] = row['payment_method'];
     map['cashReceived'] = (row['cash_received'] as num?)?.toDouble() ?? 0.0;
     map['status'] = row['status'];
-    map['createdAt'] = row['created_at'];
+
+    final rawCreated = row['created_at']?.toString();
+    if (rawCreated != null && !rawCreated.contains('T') && !rawCreated.endsWith('Z')) {
+      map['createdAt'] = '${rawCreated.replaceAll(' ', 'T')}Z';
+    } else {
+      map['createdAt'] = rawCreated;
+    }
     return map;
   }
 
@@ -137,6 +143,7 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
         'payment_method': paymentMethod,
         'cash_received': cashReceived,
         'status': 'completed',
+        'created_at': DateTime.now().toIso8601String(),
       });
 
       // 2. Loop Cart Items and save details and decrement stocks
@@ -359,23 +366,61 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
     );
     if (txnRow.isEmpty) return 1;
 
-    final createdAtStr = txnRow.first['created_at'] as String;
-    final dateOnly = createdAtStr.contains('T')
-        ? createdAtStr.split('T').first
-        : createdAtStr.split(' ').first;
+    final rawCreated = txnRow.first['created_at']?.toString();
+    if (rawCreated == null) return 1;
 
-    final startOfDay = '$dateOnly 00:00:00';
-    final endOfDay = '$dateOnly 23:59:59';
+    final parsedTarget = (rawCreated.contains('T') || rawCreated.endsWith('Z'))
+        ? DateTime.tryParse(rawCreated)?.toLocal()
+        : DateTime.tryParse('${rawCreated.replaceAll(' ', 'T')}Z')?.toLocal();
+    if (parsedTarget == null) return 1;
 
-    final countResult = await db.rawQuery('''
-      SELECT COUNT(*) as count FROM transactions 
-      WHERE DATETIME(created_at, 'localtime') BETWEEN ? AND ? AND id <= ?
-    ''', [startOfDay, endOfDay, intTxnId]);
+    final targetDateOnly = '${parsedTarget.year}-${parsedTarget.month.toString().padLeft(2, '0')}-${parsedTarget.day.toString().padLeft(2, '0')}';
 
-    if (countResult.isNotEmpty && countResult.first['count'] != null) {
-      return (countResult.first['count'] as num).toInt();
+    final List<Map<String, dynamic>> allPrevMaps = await db.query(
+      'transactions',
+      columns: ['id', 'created_at'],
+      where: 'id <= ?',
+      whereArgs: [intTxnId],
+      orderBy: 'id ASC',
+    );
+
+    int sequence = 0;
+    for (final row in allPrevMaps) {
+      final cStr = row['created_at']?.toString();
+      if (cStr != null) {
+        final rowDt = (cStr.contains('T') || cStr.endsWith('Z'))
+            ? DateTime.tryParse(cStr)?.toLocal()
+            : DateTime.tryParse('${cStr.replaceAll(' ', 'T')}Z')?.toLocal();
+        if (rowDt != null) {
+          final rDateOnly = '${rowDt.year}-${rowDt.month.toString().padLeft(2, '0')}-${rowDt.day.toString().padLeft(2, '0')}';
+          if (rDateOnly == targetDateOnly) {
+            sequence++;
+          }
+        }
+      }
     }
-    return 1;
+
+    return sequence > 0 ? sequence : 1;
+  }
+
+  Future<String> getCashierNameByShiftId(String shiftId) async {
+    final db = await _dbService.database;
+    final intShiftId = int.tryParse(shiftId);
+    if (intShiftId == null) return 'Kasir';
+
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+        COALESCE(u.full_name, u.username, 'Kasir') AS cashier_name
+      FROM shifts s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.id = ?
+    ''', [intShiftId]);
+
+    if (maps.isNotEmpty && maps.first['cashier_name'] != null) {
+      final name = maps.first['cashier_name'] as String;
+      return name.trim().isNotEmpty ? name.trim() : 'Kasir';
+    }
+    return 'Kasir';
   }
 
   // --- Shifts Management ---

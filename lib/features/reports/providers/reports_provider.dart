@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/report_local_repository.dart';
+import 'transactions_report_provider.dart';
 import '../../transactions/data/transaction_local_repository.dart';
 
 class ReportData {
@@ -129,6 +130,7 @@ class ReportsNotifier extends Notifier<ReportData> {
   }
 
   Future<void> refresh() async {
+    ref.invalidate(recentTransactionsProvider);
     await loadReportData(state.startDate, state.endDate);
   }
 
