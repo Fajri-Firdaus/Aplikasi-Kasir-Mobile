@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/cart_item.dart';
+import '../data/transaction.dart';
 import '../data/transaction_local_repository.dart';
 import '../../products/data/product.dart';
 import '../../products/providers/product_provider.dart';
@@ -53,7 +54,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
     return state.fold(0, (total, item) => total + item.totalPrice);
   }
 
-  Future<void> checkout({
+  Future<Transaction> checkout({
     required String paymentMethod,
     required double cashReceived,
     String? customerId,
@@ -67,7 +68,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
       throw Exception('Shift harus dibuka terlebih dahulu sebelum melakukan transaksi.');
     }
 
-    await repository.checkout(
+    final createdTxn = await repository.checkout(
       shiftId: activeShift.id,
       customerId: customerId,
       totalAmount: totalAmount,
@@ -86,5 +87,6 @@ class CartNotifier extends Notifier<List<CartItem>> {
     }
 
     clearCart();
+    return createdTxn;
   }
 }

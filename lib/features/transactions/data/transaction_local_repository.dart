@@ -346,6 +346,38 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
     );
   }
 
+  Future<int> getDailyTransactionSequence(String transactionId) async {
+    final db = await _dbService.database;
+    final intTxnId = int.tryParse(transactionId);
+    if (intTxnId == null) return 1;
+
+    final txnRow = await db.query(
+      'transactions',
+      columns: ['created_at'],
+      where: 'id = ?',
+      whereArgs: [intTxnId],
+    );
+    if (txnRow.isEmpty) return 1;
+
+    final createdAtStr = txnRow.first['created_at'] as String;
+    final dateOnly = createdAtStr.contains('T')
+        ? createdAtStr.split('T').first
+        : createdAtStr.split(' ').first;
+
+    final startOfDay = '$dateOnly 00:00:00';
+    final endOfDay = '$dateOnly 23:59:59';
+
+    final countResult = await db.rawQuery('''
+      SELECT COUNT(*) as count FROM transactions 
+      WHERE DATETIME(created_at, 'localtime') BETWEEN ? AND ? AND id <= ?
+    ''', [startOfDay, endOfDay, intTxnId]);
+
+    if (countResult.isNotEmpty && countResult.first['count'] != null) {
+      return (countResult.first['count'] as num).toInt();
+    }
+    return 1;
+  }
+
   // --- Shifts Management ---
   Future<Shift> openShift(String userId, double startingCash) async {
     final db = await _dbService.database;

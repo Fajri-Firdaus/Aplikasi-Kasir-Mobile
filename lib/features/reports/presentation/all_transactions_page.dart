@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../transactions/data/transaction_local_repository.dart';
+import '../../transactions/presentation/widgets/transaction_receipt_widget.dart';
 import '../providers/transactions_report_provider.dart';
 import 'widgets/transaction_detail_modal.dart';
 
@@ -209,7 +210,17 @@ class _AllTransactionsPageState extends ConsumerState<AllTransactionsPage> {
                                         children: [
                                           Row(
                                             children: [
-                                              Text('#TRX-${txn.id.padLeft(4, '0')}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF111827))),
+                                              FutureBuilder<int>(
+                                                future: repo.getDailyTransactionSequence(txn.id),
+                                                builder: (context, seqSnap) {
+                                                  final seq = seqSnap.data ?? 1;
+                                                  final receiptId = formatReceiptTransactionId(txn.createdAt, seq);
+                                                  return Text(
+                                                    '#$receiptId',
+                                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF111827)),
+                                                  );
+                                                },
+                                              ),
                                               if (isVoid) ...[
                                                 const SizedBox(width: 6),
                                                 Container(

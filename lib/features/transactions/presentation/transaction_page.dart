@@ -9,6 +9,9 @@ import '../../reports/providers/reports_provider.dart';
 import '../../customers/providers/customer_provider.dart';
 import '../../customers/data/customer.dart';
 import '../data/cart_item.dart';
+import '../data/transaction.dart';
+import '../data/transaction_local_repository.dart';
+import 'widgets/transaction_receipt_widget.dart';
 
 class TransactionPage extends ConsumerStatefulWidget {
   const TransactionPage({super.key});
@@ -310,7 +313,7 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
           final cashReceived = method == 'Tunai' ? cash : total;
 
           try {
-            await ref.read(cartProvider.notifier).checkout(
+            final createdTxn = await ref.read(cartProvider.notifier).checkout(
               paymentMethod: paymentMethod,
               cashReceived: cashReceived,
               customerId: customer?.id,
@@ -323,12 +326,8 @@ class _TransactionPageState extends ConsumerState<TransactionPage> {
               context: context,
               barrierDismissible: false,
               builder: (dialogContext) => _ReceiptDialog(
-                items: cartItems,
-                total: total,
-                paymentMethod: paymentMethod,
-                cashReceived: cashReceived,
+                transaction: createdTxn,
                 customer: customer,
-                formatCurrency: _formatCurrency,
                 onClose: () {
                   Navigator.pop(dialogContext);
                   context.go('/dashboard');
@@ -1192,32 +1191,20 @@ String _formatCurrency(int val) {
 }
 
 // --- Receipt Popup Dialog ---
-class _ReceiptDialog extends StatelessWidget {
-  final List<CartItem> items;
-  final double total;
-  final String paymentMethod;
-  final double cashReceived;
+class _ReceiptDialog extends ConsumerWidget {
+  final Transaction transaction;
   final Customer? customer;
-  final String Function(int) formatCurrency;
   final VoidCallback onClose;
 
   const _ReceiptDialog({
-    required this.items,
-    required this.total,
-    required this.paymentMethod,
-    required this.cashReceived,
+    required this.transaction,
     this.customer,
-    required this.formatCurrency,
     required this.onClose,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final transactionId = 'TRX-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
-    final now = DateTime.now();
-    final formattedDate = '${now.day}/${now.month}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final change = (cashReceived - total).clamp(0, double.infinity);
-    final displayMethod = paymentMethod == 'cash' ? 'Tunai' : (paymentMethod == 'qris' ? 'QRIS' : 'Transfer');
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.watch(transactionRepositoryProvider);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1228,7 +1215,6 @@ class _ReceiptDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header Success Icon
               Container(
                 width: 54,
                 height: 54,
@@ -1243,126 +1229,33 @@ class _ReceiptDialog extends StatelessWidget {
                 'Pembayaran Berhasil!',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF111827)),
               ),
-              Text(
-                transactionId,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280), fontWeight: FontWeight.w500),
-              ),
               const SizedBox(height: 16),
 
-              // Struk Container (Receipt style)
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Center(
-                      child: Text(
-                        'MOBILE POS',
-                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1),
-                      ),
-                    ),
-                    const Center(
-                      child: Text(
-                        'Struk Bukti Pembayaran',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Divider(thickness: 1),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Waktu', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
-                        Text(formattedDate, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Pelanggan', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
-                        Text(customer != null ? customer!.name : 'Pelanggan Umum', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Metode', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
-                        Text(displayMethod, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    const Divider(thickness: 1),
-                    const Text('Detail Orderan:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF374151))),
-                    const SizedBox(height: 6),
-                    ...items.map((item) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${item.product.name} x${item.quantity}',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF111827)),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(
-                            'Rp ${formatCurrency(item.totalPrice.toInt())}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    )),
-                    const SizedBox(height: 10),
-                    const Divider(thickness: 1),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('TOTAL', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                        Text('Rp ${formatCurrency(total.toInt())}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF2563EB))),
-                      ],
-                    ),
-                    if (paymentMethod == 'cash') ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Diterima', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
-                          Text('Rp ${formatCurrency(cashReceived.toInt())}', style: const TextStyle(fontSize: 11)),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Kembalian', style: TextStyle(fontSize: 11, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
-                          Text('Rp ${formatCurrency(change.toInt())}', style: const TextStyle(fontSize: 11, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
+              FutureBuilder<int>(
+                future: repo.getDailyTransactionSequence(transaction.id),
+                builder: (context, snapshot) {
+                  final seq = snapshot.data ?? 1;
+                  return TransactionReceiptWidget(
+                    transaction: transaction,
+                    repo: repo,
+                    customer: customer,
+                    dailySequence: seq,
+                  );
+                },
               ),
+
               const SizedBox(height: 20),
 
-              // Action Buttons Row (Print, Share, Close)
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.print_outlined, size: 16),
-                      label: const Text('Cetak', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      label: const Text('Cetak Struk', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF2563EB),
                         side: const BorderSide(color: Color(0xFF2563EB)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: () {
@@ -1376,43 +1269,22 @@ class _ReceiptDialog extends StatelessWidget {
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.share_outlined, size: 16),
-                      label: const Text('Bagikan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF059669),
-                        side: const BorderSide(color: Color(0xFF059669)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.check_circle_outline, size: 16),
+                      label: const Text('Selesai', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Row(children: [Icon(Icons.share, color: Colors.white), SizedBox(width: 8), Text('Membagikan struk transaksi...')]),
-                            backgroundColor: Color(0xFF059669),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
+                      onPressed: onClose,
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1F2937),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: onClose,
-                  child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                ),
               ),
             ],
           ),
