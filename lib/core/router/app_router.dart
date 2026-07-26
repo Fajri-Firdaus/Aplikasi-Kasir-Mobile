@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/users/data/app_user.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/dashboard/presentation/main_layout.dart';
 import '../../features/dashboard/presentation/dashboard_page.dart';
@@ -24,13 +25,32 @@ final _shellNavigatorProductsKey = GlobalKey<NavigatorState>();
 final _shellNavigatorReportsKey = GlobalKey<NavigatorState>();
 final _shellNavigatorSettingsKey = GlobalKey<NavigatorState>();
 
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterNotifier(this._ref) {
+    _ref.listen<AppUser?>(
+      authProvider,
+      (previous, next) {
+        notifyListeners();
+      },
+    );
+  }
+}
+
+final routerNotifierProvider = Provider<RouterNotifier>((ref) {
+  return RouterNotifier(ref);
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final isAuth = ref.watch(authProvider);
+  final routerNotifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
+    refreshListenable: routerNotifier,
     initialLocation: '/dashboard',
     redirect: (context, state) {
+      final isAuth = ref.read(authProvider) != null;
       final loggingIn = state.uri.toString() == '/login';
       
       // If not logged in and not heading to login, redirect to login

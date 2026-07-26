@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/router/app_router.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -125,7 +126,8 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
-      ref.read(authProvider.notifier).logout();
+      await ref.read(authProvider.notifier).logout();
+      ref.read(routerProvider).go('/login');
     }
   }
 }

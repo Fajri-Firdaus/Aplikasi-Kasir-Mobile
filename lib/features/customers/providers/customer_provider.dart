@@ -9,7 +9,11 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
   @override
   FutureOr<List<Customer>> build() async {
     _repository = ref.watch(customerRepositoryProvider);
-    return _repository.getAll();
+    try {
+      return await _repository.getAll();
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> refresh() async {

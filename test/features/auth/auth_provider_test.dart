@@ -25,17 +25,17 @@ void main() {
     return container;
   }
 
-  test('AuthNotifier initial state is false', () {
+  test('AuthNotifier initial state is null', () {
     final container = createContainer();
-    expect(container.read(authProvider), false);
+    expect(container.read(authProvider), null);
   });
 
-  test('AuthNotifier login success sets state to true', () async {
+  test('AuthNotifier login success sets state to AppUser', () async {
     final container = createContainer();
     final notifier = container.read(authProvider.notifier);
     
     await notifier.login('admin', '123456');
-    expect(container.read(authProvider), true);
+    expect(container.read(authProvider) != null, true);
   });
 
   test('AuthNotifier login fails with wrong password', () async {
@@ -46,18 +46,18 @@ void main() {
       () async => await notifier.login('admin', 'wrong'),
       throwsException,
     );
-    expect(container.read(authProvider), false);
+    expect(container.read(authProvider), null);
   });
 
-  test('AuthNotifier logout sets state to false', () async {
+  test('AuthNotifier logout sets state to null', () async {
     final container = createContainer();
     final notifier = container.read(authProvider.notifier);
     
     await notifier.login('admin', '123456');
-    expect(container.read(authProvider), true);
+    expect(container.read(authProvider) != null, true);
     
     await notifier.logout();
-    expect(container.read(authProvider), false);
+    expect(container.read(authProvider), null);
   });
 
   test('AuthNotifier signUp success allows login', () async {
@@ -69,7 +69,7 @@ void main() {
 
     // Login with the new user should succeed
     await notifier.login('newuser', 'password123');
-    expect(container.read(authProvider), true);
+    expect(container.read(authProvider) != null, true);
   });
 
   test('AuthNotifier signUp fails with duplicate username', () async {

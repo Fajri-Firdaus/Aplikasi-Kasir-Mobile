@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/app_user.dart';
 import '../data/user_local_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final usersProvider = NotifierProvider<UsersNotifier, List<AppUser>>(UsersNotifier.new);
 
@@ -10,14 +11,18 @@ class UsersNotifier extends Notifier<List<AppUser>> {
   @override
   List<AppUser> build() {
     _repository = ref.watch(userRepositoryProvider);
-    Future.microtask(() => loadUsers());
+    final storeId = ref.watch(activeStoreIdProvider);
+    Future.microtask(() => loadUsers(storeId: storeId));
     return [];
   }
 
-  Future<void> loadUsers() async {
+  Future<void> loadUsers({String? storeId}) async {
     try {
-      final list = await _repository.getAll();
-      state = list;
+      final activeStoreId = storeId ?? ref.read(activeStoreIdProvider);
+      final list = await _repository.getAllForStore(activeStoreId);
+      if (ref.mounted) {
+        state = list;
+      }
     } catch (e) {
       // Handle error
     }
@@ -25,7 +30,13 @@ class UsersNotifier extends Notifier<List<AppUser>> {
 
   Future<void> addUser(AppUser user) async {
     try {
-      final newUser = await _repository.create(user);
+      final storeId = ref.read(activeStoreIdProvider);
+      final currentUser = ref.read(currentUserProvider).value;
+      final userWithStore = user.copyWith(
+        storeId: (user.storeId != null && user.storeId!.isNotEmpty) ? user.storeId : storeId,
+        adminId: (user.adminId != null && user.adminId!.isNotEmpty) ? user.adminId : (currentUser?.id ?? '1'),
+      );
+      final newUser = await _repository.create(userWithStore);
       state = [...state, newUser];
     } catch (e) {
       // Handle error
@@ -52,7 +63,6 @@ class UsersNotifier extends Notifier<List<AppUser>> {
 
   void toggleActive(String id) {
     state = [for (final u in state) if (u.id == id) u.copyWith(isActive: !u.isActive) else u];
-    // In a real app we would persist this toggle to database, e.g.:
     final user = state.firstWhere((u) => u.id == id);
     _repository.update(id, user);
   }

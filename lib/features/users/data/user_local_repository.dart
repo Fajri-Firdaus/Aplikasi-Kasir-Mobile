@@ -23,9 +23,10 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
       username: row['username'] as String,
       email: row['email']?.toString() ?? '',
       role: row['role'] as String,
-      isActive: true, // In simple mapping, or use a column if present
+      isActive: (row['is_active'] as int? ?? 1) == 1,
       createdAt: row['created_at']?.toString() ?? '',
       adminId: row['admin_id']?.toString(),
+      storeId: row['store_id']?.toString(),
     );
   }
 
@@ -34,6 +35,19 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'users',
+      where: 'is_active = 1',
+      orderBy: 'full_name ASC',
+    );
+    return maps.map(_mapRowToUser).toList();
+  }
+
+  Future<List<AppUser>> getAllForStore(String? storeId) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'store_id = ? AND is_active = 1',
+      whereArgs: [activeStoreId],
       orderBy: 'full_name ASC',
     );
     return maps.map(_mapRowToUser).toList();
@@ -42,13 +56,10 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
   @override
   Future<AppUser?> getById(String id) async {
     final db = await _dbService.database;
-    final intId = int.tryParse(id);
-    if (intId == null) return null;
-
     final List<Map<String, dynamic>> maps = await db.query(
       'users',
       where: 'id = ?',
-      whereArgs: [intId],
+      whereArgs: [id],
     );
 
     if (maps.isEmpty) return null;
@@ -60,30 +71,36 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
     final db = await _dbService.database;
     final hashedPassword = _hash(item.password ?? '123456');
 
-    final id = await db.insert('users', {
+    final userId = item.id.isNotEmpty ? item.id : DateTime.now().millisecondsSinceEpoch.toString();
+    final storeId = (item.storeId != null && item.storeId!.isNotEmpty) ? item.storeId! : 'store-uuid-001';
+
+    await db.insert('users', {
+      'id': userId,
       'full_name': item.name,
       'email': item.email,
       'username': item.username,
       'password': hashedPassword,
       'role': item.role,
-      'admin_id': item.adminId != null ? int.tryParse(item.adminId!) : null,
+      'admin_id': item.adminId,
+      'store_id': storeId,
+      'is_active': item.isActive ? 1 : 0,
     });
 
-    return item.copyWith(id: id.toString());
+    return item.copyWith(id: userId, storeId: storeId);
   }
 
   @override
   Future<AppUser> update(String id, AppUser item) async {
     final db = await _dbService.database;
-    final intId = int.tryParse(id);
-    if (intId == null) throw Exception('Invalid User ID');
 
     final Map<String, dynamic> values = {
       'full_name': item.name,
       'email': item.email,
       'username': item.username,
       'role': item.role,
-      'admin_id': item.adminId != null ? int.tryParse(item.adminId!) : null,
+      'admin_id': item.adminId,
+      'store_id': item.storeId,
+      'is_active': item.isActive ? 1 : 0,
     };
 
     if (item.password != null && item.password!.isNotEmpty) {
@@ -94,7 +111,7 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
       'users',
       values,
       where: 'id = ?',
-      whereArgs: [intId],
+      whereArgs: [id],
     );
 
     return item;
@@ -103,13 +120,12 @@ class UserLocalRepository implements RepositoryInterface<AppUser> {
   @override
   Future<void> delete(String id) async {
     final db = await _dbService.database;
-    final intId = int.tryParse(id);
-    if (intId == null) return;
-
-    await db.delete(
+    // Soft Delete
+    await db.update(
       'users',
+      {'is_active': 0},
       where: 'id = ?',
-      whereArgs: [intId],
+      whereArgs: [id],
     );
   }
 

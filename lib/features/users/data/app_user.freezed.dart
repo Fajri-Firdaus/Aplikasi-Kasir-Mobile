@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 mixin _$AppUser {
 
  String get id; String get name; String get username; String get email; String get role;// 'admin' | 'kasir' / 'cashier'
- bool get isActive; String get createdAt; String? get password; String? get adminId;
+ bool get isActive; String get createdAt; String? get password; String? get adminId; String? get storeId;
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $AppUserCopyWith<AppUser> get copyWith => _$AppUserCopyWithImpl<AppUser>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.role, role) || other.role == role)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.password, password) || other.password == password)&&(identical(other.adminId, adminId) || other.adminId == adminId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.role, role) || other.role == role)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.password, password) || other.password == password)&&(identical(other.adminId, adminId) || other.adminId == adminId)&&(identical(other.storeId, storeId) || other.storeId == storeId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,username,email,role,isActive,createdAt,password,adminId);
+int get hashCode => Object.hash(runtimeType,id,name,username,email,role,isActive,createdAt,password,adminId,storeId);
 
 @override
 String toString() {
-  return 'AppUser(id: $id, name: $name, username: $username, email: $email, role: $role, isActive: $isActive, createdAt: $createdAt, password: $password, adminId: $adminId)';
+  return 'AppUser(id: $id, name: $name, username: $username, email: $email, role: $role, isActive: $isActive, createdAt: $createdAt, password: $password, adminId: $adminId, storeId: $storeId)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $AppUserCopyWith<$Res>  {
   factory $AppUserCopyWith(AppUser value, $Res Function(AppUser) _then) = _$AppUserCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String username, String email, String role, bool isActive, String createdAt, String? password, String? adminId
+ String id, String name, String username, String email, String role, bool isActive, String createdAt, String? password, String? adminId, String? storeId
 });
 
 
@@ -66,7 +66,7 @@ class _$AppUserCopyWithImpl<$Res>
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? username = null,Object? email = null,Object? role = null,Object? isActive = null,Object? createdAt = null,Object? password = freezed,Object? adminId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? username = null,Object? email = null,Object? role = null,Object? isActive = null,Object? createdAt = null,Object? password = freezed,Object? adminId = freezed,Object? storeId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -77,6 +77,7 @@ as String,isActive: null == isActive ? _self.isActive : isActive // ignore: cast
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as String,password: freezed == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
 as String?,adminId: freezed == adminId ? _self.adminId : adminId // ignore: cast_nullable_to_non_nullable
+as String?,storeId: freezed == storeId ? _self.storeId : storeId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -162,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String username,  String email,  String role,  bool isActive,  String createdAt,  String? password,  String? adminId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String username,  String email,  String role,  bool isActive,  String createdAt,  String? password,  String? adminId,  String? storeId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppUser() when $default != null:
-return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.isActive,_that.createdAt,_that.password,_that.adminId);case _:
+return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.isActive,_that.createdAt,_that.password,_that.adminId,_that.storeId);case _:
   return orElse();
 
 }
@@ -183,10 +184,10 @@ return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String username,  String email,  String role,  bool isActive,  String createdAt,  String? password,  String? adminId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String username,  String email,  String role,  bool isActive,  String createdAt,  String? password,  String? adminId,  String? storeId)  $default,) {final _that = this;
 switch (_that) {
 case _AppUser():
-return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.isActive,_that.createdAt,_that.password,_that.adminId);case _:
+return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.isActive,_that.createdAt,_that.password,_that.adminId,_that.storeId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +204,10 @@ return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String username,  String email,  String role,  bool isActive,  String createdAt,  String? password,  String? adminId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String username,  String email,  String role,  bool isActive,  String createdAt,  String? password,  String? adminId,  String? storeId)?  $default,) {final _that = this;
 switch (_that) {
 case _AppUser() when $default != null:
-return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.isActive,_that.createdAt,_that.password,_that.adminId);case _:
+return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.isActive,_that.createdAt,_that.password,_that.adminId,_that.storeId);case _:
   return null;
 
 }
@@ -218,7 +219,7 @@ return $default(_that.id,_that.name,_that.username,_that.email,_that.role,_that.
 @JsonSerializable()
 
 class _AppUser implements AppUser {
-  const _AppUser({required this.id, required this.name, required this.username, required this.email, required this.role, this.isActive = true, required this.createdAt, this.password, this.adminId});
+  const _AppUser({required this.id, required this.name, required this.username, required this.email, required this.role, this.isActive = true, required this.createdAt, this.password, this.adminId, this.storeId});
   factory _AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);
 
 @override final  String id;
@@ -231,6 +232,7 @@ class _AppUser implements AppUser {
 @override final  String createdAt;
 @override final  String? password;
 @override final  String? adminId;
+@override final  String? storeId;
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
@@ -245,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.role, role) || other.role == role)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.password, password) || other.password == password)&&(identical(other.adminId, adminId) || other.adminId == adminId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.role, role) || other.role == role)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.password, password) || other.password == password)&&(identical(other.adminId, adminId) || other.adminId == adminId)&&(identical(other.storeId, storeId) || other.storeId == storeId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,username,email,role,isActive,createdAt,password,adminId);
+int get hashCode => Object.hash(runtimeType,id,name,username,email,role,isActive,createdAt,password,adminId,storeId);
 
 @override
 String toString() {
-  return 'AppUser(id: $id, name: $name, username: $username, email: $email, role: $role, isActive: $isActive, createdAt: $createdAt, password: $password, adminId: $adminId)';
+  return 'AppUser(id: $id, name: $name, username: $username, email: $email, role: $role, isActive: $isActive, createdAt: $createdAt, password: $password, adminId: $adminId, storeId: $storeId)';
 }
 
 
@@ -265,7 +267,7 @@ abstract mixin class _$AppUserCopyWith<$Res> implements $AppUserCopyWith<$Res> {
   factory _$AppUserCopyWith(_AppUser value, $Res Function(_AppUser) _then) = __$AppUserCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String username, String email, String role, bool isActive, String createdAt, String? password, String? adminId
+ String id, String name, String username, String email, String role, bool isActive, String createdAt, String? password, String? adminId, String? storeId
 });
 
 
@@ -282,7 +284,7 @@ class __$AppUserCopyWithImpl<$Res>
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? username = null,Object? email = null,Object? role = null,Object? isActive = null,Object? createdAt = null,Object? password = freezed,Object? adminId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? username = null,Object? email = null,Object? role = null,Object? isActive = null,Object? createdAt = null,Object? password = freezed,Object? adminId = freezed,Object? storeId = freezed,}) {
   return _then(_AppUser(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -293,6 +295,7 @@ as String,isActive: null == isActive ? _self.isActive : isActive // ignore: cast
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as String,password: freezed == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
 as String?,adminId: freezed == adminId ? _self.adminId : adminId // ignore: cast_nullable_to_non_nullable
+as String?,storeId: freezed == storeId ? _self.storeId : storeId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

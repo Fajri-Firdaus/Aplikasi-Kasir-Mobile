@@ -15,6 +15,7 @@ abstract class AppUser with _$AppUser {
     required String createdAt,
     String? password,
     String? adminId,
+    String? storeId,
   }) = _AppUser;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);

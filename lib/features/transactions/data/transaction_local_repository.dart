@@ -120,6 +120,7 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
   }
 
   // --- Transactions & Details Persistence ---
+  // --- Transactions & Details Persistence ---
   Future<Transaction> checkout({
     required String shiftId,
     required double totalAmount,
@@ -127,18 +128,20 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
     required double cashReceived,
     String? customerId,
     required List<CartItem> items,
+    String storeId = 'store-uuid-001',
   }) async {
     final db = await _dbService.database;
-    final intShiftId = int.parse(shiftId);
-    final intCustomerId = customerId != null ? int.tryParse(customerId) : null;
 
     Transaction? transactionResult;
+    final transactionId = DateTime.now().millisecondsSinceEpoch.toString();
 
     await db.transaction((txn) async {
       // 1. Insert Transaction Header
-      final transactionId = await txn.insert('transactions', {
-        'shift_id': intShiftId,
-        'customer_id': intCustomerId,
+      await txn.insert('transactions', {
+        'id': transactionId,
+        'store_id': storeId,
+        'shift_id': shiftId,
+        'customer_id': customerId,
         'total_amount': totalAmount,
         'payment_method': paymentMethod,
         'cash_received': cashReceived,
@@ -148,14 +151,14 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
 
       // 2. Loop Cart Items and save details and decrement stocks
       for (final item in items) {
-        final intProductId = int.parse(item.product.id);
+        final productId = item.product.id;
 
         // Retrieve current product details (specifically buy_price and stock)
         final List<Map<String, dynamic>> productMaps = await txn.query(
           'products',
           columns: ['buy_price', 'sell_price', 'stock'],
           where: 'id = ?',
-          whereArgs: [intProductId],
+          whereArgs: [productId],
         );
 
         if (productMaps.isEmpty) {
@@ -171,10 +174,13 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
           throw Exception('Stok tidak mencukupi untuk produk: ${item.product.name}');
         }
 
+        final detailId = '${transactionId}_$productId';
+
         // Insert Transaction Detail
         await txn.insert('transaction_details', {
+          'id': detailId,
           'transaction_id': transactionId,
-          'product_id': intProductId,
+          'product_id': productId,
           'quantity': item.quantity,
           'buy_price_at_sale': buyPrice,
           'sell_price_at_sale': sellPrice,
@@ -185,7 +191,7 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
           'products',
           {'stock': currentStock - item.quantity},
           where: 'id = ?',
-          whereArgs: [intProductId],
+          whereArgs: [productId],
         );
       }
 
@@ -207,8 +213,6 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
 
   Future<void> voidTransaction(String id) async {
     final db = await _dbService.database;
-    final intId = int.tryParse(id);
-    if (intId == null) return;
 
     await db.transaction((txn) async {
       // 1. Update status to void
@@ -216,19 +220,19 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
         'transactions',
         {'status': 'void'},
         where: 'id = ?',
-        whereArgs: [intId],
+        whereArgs: [id],
       );
 
       // 2. Fetch transaction details to restore stock
       final List<Map<String, dynamic>> details = await txn.query(
         'transaction_details',
         where: 'transaction_id = ?',
-        whereArgs: [intId],
+        whereArgs: [id],
       );
 
       // Restore stock for each item in details
       for (final detail in details) {
-        final productId = detail['product_id'] as int;
+        final productId = detail['product_id'].toString();
         final quantity = detail['quantity'] as int;
 
         await txn.rawUpdate(
@@ -241,11 +245,10 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
 
   Future<List<TransactionDetail>> getTransactionDetails(String transactionId) async {
     final db = await _dbService.database;
-    final intTxnId = int.parse(transactionId);
     final List<Map<String, dynamic>> maps = await db.query(
       'transaction_details',
       where: 'transaction_id = ?',
-      whereArgs: [intTxnId],
+      whereArgs: [transactionId],
     );
 
     return maps.map((map) {
@@ -292,20 +295,26 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
     }).toList();
   }
 
-  Future<List<Transaction>> getRecentTransactions({int limit = 10}) async {
+  Future<List<Transaction>> getRecentTransactions({int limit = 10, String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'transactions',
+      where: 'store_id = ?',
+      whereArgs: [activeStoreId],
       orderBy: 'created_at DESC',
       limit: limit,
     );
     return maps.map((map) => Transaction.fromJson(_mapDbRow(map))).toList();
   }
 
-  Future<List<Transaction>> getFilteredTransactions({DateTime? startDate, DateTime? endDate}) async {
+  Future<List<Transaction>> getFilteredTransactions({DateTime? startDate, DateTime? endDate, String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'transactions',
+      where: 'store_id = ?',
+      whereArgs: [activeStoreId],
       orderBy: 'id DESC',
     );
 
@@ -335,13 +344,11 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
 
   Future<Customer?> getCustomerById(String customerId) async {
     final db = await _dbService.database;
-    final intId = int.tryParse(customerId);
-    if (intId == null) return null;
 
     final List<Map<String, dynamic>> maps = await db.query(
       'customers',
       where: 'id = ?',
-      whereArgs: [intId],
+      whereArgs: [customerId],
     );
 
     if (maps.isEmpty) return null;
@@ -356,14 +363,12 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
 
   Future<int> getDailyTransactionSequence(String transactionId) async {
     final db = await _dbService.database;
-    final intTxnId = int.tryParse(transactionId);
-    if (intTxnId == null) return 1;
 
     final txnRow = await db.query(
       'transactions',
       columns: ['created_at'],
       where: 'id = ?',
-      whereArgs: [intTxnId],
+      whereArgs: [transactionId],
     );
     if (txnRow.isEmpty) return 1;
 
@@ -380,9 +385,7 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
     final List<Map<String, dynamic>> allPrevMaps = await db.query(
       'transactions',
       columns: ['id', 'created_at'],
-      where: 'id <= ?',
-      whereArgs: [intTxnId],
-      orderBy: 'id ASC',
+      orderBy: 'created_at ASC',
     );
 
     int sequence = 0;
@@ -399,6 +402,9 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
           }
         }
       }
+      if (row['id'].toString() == transactionId) {
+        break;
+      }
     }
 
     return sequence > 0 ? sequence : 1;
@@ -406,8 +412,6 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
 
   Future<String> getCashierNameByShiftId(String shiftId) async {
     final db = await _dbService.database;
-    final intShiftId = int.tryParse(shiftId);
-    if (intShiftId == null) return 'Kasir';
 
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
@@ -415,7 +419,7 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
       FROM shifts s
       JOIN users u ON s.user_id = u.id
       WHERE s.id = ?
-    ''', [intShiftId]);
+    ''', [shiftId]);
 
     if (maps.isNotEmpty && maps.first['cashier_name'] != null) {
       final name = maps.first['cashier_name'] as String;
@@ -425,27 +429,41 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
   }
 
   // --- Shifts Management ---
-  Future<Shift> openShift(String userId, double startingCash) async {
+  Future<Shift> openShift(String userId, double startingCash, {String storeId = 'store-uuid-001'}) async {
     final db = await _dbService.database;
-    final intUserId = int.parse(userId);
 
     // Ensure there is no open shift already
-    final activeShift = await getActiveShift();
+    final activeShift = await getActiveShift(storeId: storeId);
     if (activeShift != null) {
       return activeShift;
     }
 
-    // Get count of shifts started today to set shift_number
+    // Ensure valid user ID for Foreign Key constraint
+    String effectiveUserId = userId;
+    final userCheck = await db.query('users', where: 'id = ?', whereArgs: [userId]);
+    if (userCheck.isEmpty) {
+      final defaultUser = await db.query('users', limit: 1);
+      if (defaultUser.isNotEmpty) {
+        effectiveUserId = defaultUser.first['id'].toString();
+      } else {
+        effectiveUserId = 'admin-uuid-001';
+      }
+    }
+
     final countMaps = await db.rawQuery('''
       SELECT COUNT(*) as count 
       FROM shifts 
-      WHERE DATE(start_time, 'localtime') = DATE('now', 'localtime')
-    ''');
+      WHERE store_id = ? AND DATE(start_time, 'localtime') = DATE('now', 'localtime')
+    ''', [storeId]);
     final shiftCount = countMaps.isNotEmpty ? (countMaps.first['count'] as int? ?? 0) : 0;
     final nextShiftNumber = shiftCount + 1;
 
-    final id = await db.insert('shifts', {
-      'user_id': intUserId,
+    final shiftId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    await db.insert('shifts', {
+      'id': shiftId,
+      'store_id': storeId,
+      'user_id': effectiveUserId,
       'starting_cash': startingCash,
       'ending_cash': 0.0,
       'status': 'open',
@@ -455,17 +473,19 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
     final List<Map<String, dynamic>> maps = await db.query(
       'shifts',
       where: 'id = ?',
-      whereArgs: [id],
+      whereArgs: [shiftId],
     );
 
     return Shift.fromJson(_mapShiftRow(maps.first));
   }
 
-  Future<Shift?> getActiveShift() async {
+  Future<Shift?> getActiveShift({String? storeId}) async {
+    if (storeId == null || storeId.isEmpty) return null;
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'shifts',
-      where: "status = 'open'",
+      where: "store_id = ? AND status = 'open'",
+      whereArgs: [storeId],
       limit: 1,
     );
 
@@ -475,7 +495,6 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
 
   Future<Shift> closeShift(String shiftId, double endingCash) async {
     final db = await _dbService.database;
-    final intId = int.parse(shiftId);
 
     await db.update(
       'shifts',
@@ -485,13 +504,13 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
         'end_time': DateTime.now().toUtc().toIso8601String(),
       },
       where: 'id = ?',
-      whereArgs: [intId],
+      whereArgs: [shiftId],
     );
 
     final List<Map<String, dynamic>> maps = await db.query(
       'shifts',
       where: 'id = ?',
-      whereArgs: [intId],
+      whereArgs: [shiftId],
     );
 
     return Shift.fromJson(_mapShiftRow(maps.first));
@@ -500,13 +519,13 @@ class TransactionLocalRepository implements RepositoryInterface<Transaction> {
   Map<String, dynamic> _mapShiftRow(Map<String, dynamic> row) {
     final map = Map<String, dynamic>.from(row);
     map['id'] = row['id'].toString();
-    map['userId'] = row['user_id'].toString();
-    map['startTime'] = row['start_time'];
-    map['endTime'] = row['end_time'];
-    map['startingCash'] = (row['starting_cash'] as num).toDouble();
-    map['endingCash'] = (row['ending_cash'] as num).toDouble();
-    map['status'] = row['status'];
-    map['shiftNumber'] = row['shift_number'] ?? 1;
+    map['userId'] = row['user_id']?.toString() ?? '';
+    map['startTime'] = row['start_time']?.toString() ?? DateTime.now().toIso8601String();
+    map['endTime'] = row['end_time']?.toString();
+    map['startingCash'] = (row['starting_cash'] as num? ?? 0.0).toDouble();
+    map['endingCash'] = (row['ending_cash'] as num? ?? 0.0).toDouble();
+    map['status'] = row['status'] ?? 'open';
+    map['shiftNumber'] = row['shift_number'] as int? ?? 1;
     return map;
   }
 }

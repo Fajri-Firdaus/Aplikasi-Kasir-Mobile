@@ -12,16 +12,19 @@ class SettingsLocalRepository {
 
   SettingsLocalRepository(this._dbService);
 
-  Future<AppSettings> getSettings() async {
+  Future<AppSettings> getSettings({String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.query(
-      'store_settings',
-      where: 'id = 1',
+      'stores',
+      where: 'id = ?',
+      whereArgs: [activeStoreId],
     );
 
     if (maps.isEmpty) {
       // Return default app settings if not seeded yet
-      return const AppSettings(
+      return AppSettings(
+        id: activeStoreId,
         storeName: 'Mobile POS Dashboard',
         storeAddress: 'Jl. Merdeka No. 123',
         storePhone: '08123456789',
@@ -31,27 +34,65 @@ class SettingsLocalRepository {
 
     final row = maps.first;
     return AppSettings(
+      id: row['id']?.toString() ?? activeStoreId,
+      ownerId: row['owner_id']?.toString(),
       storeName: row['store_name'] as String,
       storeAddress: row['store_address']?.toString() ?? '',
       storePhone: row['store_phone']?.toString() ?? '',
       receiptFooter: row['receipt_footer']?.toString() ?? 'Terima kasih atas kunjungan Anda!',
-      updatedAt: row['updated_at']?.toString(),
+      updatedAt: row['created_at']?.toString(),
     );
   }
 
-  Future<AppSettings> updateSettings(AppSettings settings) async {
+  Future<AppSettings> updateSettings(AppSettings settings, {String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
+    final targetStoreId = settings.id ?? activeStoreId;
+
     await db.update(
-      'store_settings',
+      'stores',
       {
         'store_name': settings.storeName,
         'store_address': settings.storeAddress,
         'store_phone': settings.storePhone,
         'receipt_footer': settings.receiptFooter,
-        'updated_at': DateTime.now().toIso8601String(),
       },
-      where: 'id = 1',
+      where: 'id = ?',
+      whereArgs: [targetStoreId],
     );
+
+    try {
+      await db.update(
+        'store_settings',
+        {
+          'store_name': settings.storeName,
+          'store_address': settings.storeAddress,
+          'store_phone': settings.storePhone,
+          'receipt_footer': settings.receiptFooter,
+        },
+        where: 'id = 1',
+      );
+    } catch (_) {}
+
     return settings;
+  }
+
+  Future<void> createStore({
+    required String id,
+    required String ownerId,
+    required String storeName,
+    String storeAddress = '',
+    String storePhone = '',
+    String receiptFooter = 'Terima kasih atas kunjungan Anda!',
+  }) async {
+    final db = await _dbService.database;
+    await db.insert('stores', {
+      'id': id,
+      'owner_id': ownerId,
+      'store_name': storeName,
+      'store_address': storeAddress,
+      'store_phone': storePhone,
+      'receipt_footer': receiptFooter,
+    });
   }
 }

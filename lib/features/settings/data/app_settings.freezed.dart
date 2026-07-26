@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppSettings {
 
- String get storeName; String get storeAddress; String get storePhone; String get receiptFooter; String? get updatedAt;
+ String? get id; String? get ownerId; String get storeName; String get storeAddress; String get storePhone; String get receiptFooter; String? get updatedAt;
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $AppSettingsCopyWith<AppSettings> get copyWith => _$AppSettingsCopyWithImpl<AppS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.storeName, storeName) || other.storeName == storeName)&&(identical(other.storeAddress, storeAddress) || other.storeAddress == storeAddress)&&(identical(other.storePhone, storePhone) || other.storePhone == storePhone)&&(identical(other.receiptFooter, receiptFooter) || other.receiptFooter == receiptFooter)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.id, id) || other.id == id)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.storeName, storeName) || other.storeName == storeName)&&(identical(other.storeAddress, storeAddress) || other.storeAddress == storeAddress)&&(identical(other.storePhone, storePhone) || other.storePhone == storePhone)&&(identical(other.receiptFooter, receiptFooter) || other.receiptFooter == receiptFooter)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,storeName,storeAddress,storePhone,receiptFooter,updatedAt);
+int get hashCode => Object.hash(runtimeType,id,ownerId,storeName,storeAddress,storePhone,receiptFooter,updatedAt);
 
 @override
 String toString() {
-  return 'AppSettings(storeName: $storeName, storeAddress: $storeAddress, storePhone: $storePhone, receiptFooter: $receiptFooter, updatedAt: $updatedAt)';
+  return 'AppSettings(id: $id, ownerId: $ownerId, storeName: $storeName, storeAddress: $storeAddress, storePhone: $storePhone, receiptFooter: $receiptFooter, updatedAt: $updatedAt)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $AppSettingsCopyWith<$Res>  {
   factory $AppSettingsCopyWith(AppSettings value, $Res Function(AppSettings) _then) = _$AppSettingsCopyWithImpl;
 @useResult
 $Res call({
- String storeName, String storeAddress, String storePhone, String receiptFooter, String? updatedAt
+ String? id, String? ownerId, String storeName, String storeAddress, String storePhone, String receiptFooter, String? updatedAt
 });
 
 
@@ -65,9 +65,11 @@ class _$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? storeName = null,Object? storeAddress = null,Object? storePhone = null,Object? receiptFooter = null,Object? updatedAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? ownerId = freezed,Object? storeName = null,Object? storeAddress = null,Object? storePhone = null,Object? receiptFooter = null,Object? updatedAt = freezed,}) {
   return _then(_self.copyWith(
-storeName: null == storeName ? _self.storeName : storeName // ignore: cast_nullable_to_non_nullable
+id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String?,ownerId: freezed == ownerId ? _self.ownerId : ownerId // ignore: cast_nullable_to_non_nullable
+as String?,storeName: null == storeName ? _self.storeName : storeName // ignore: cast_nullable_to_non_nullable
 as String,storeAddress: null == storeAddress ? _self.storeAddress : storeAddress // ignore: cast_nullable_to_non_nullable
 as String,storePhone: null == storePhone ? _self.storePhone : storePhone // ignore: cast_nullable_to_non_nullable
 as String,receiptFooter: null == receiptFooter ? _self.receiptFooter : receiptFooter // ignore: cast_nullable_to_non_nullable
@@ -157,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String storeName,  String storeAddress,  String storePhone,  String receiptFooter,  String? updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? ownerId,  String storeName,  String storeAddress,  String storePhone,  String receiptFooter,  String? updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.storeName,_that.storeAddress,_that.storePhone,_that.receiptFooter,_that.updatedAt);case _:
+return $default(_that.id,_that.ownerId,_that.storeName,_that.storeAddress,_that.storePhone,_that.receiptFooter,_that.updatedAt);case _:
   return orElse();
 
 }
@@ -178,10 +180,10 @@ return $default(_that.storeName,_that.storeAddress,_that.storePhone,_that.receip
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String storeName,  String storeAddress,  String storePhone,  String receiptFooter,  String? updatedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? ownerId,  String storeName,  String storeAddress,  String storePhone,  String receiptFooter,  String? updatedAt)  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings():
-return $default(_that.storeName,_that.storeAddress,_that.storePhone,_that.receiptFooter,_that.updatedAt);case _:
+return $default(_that.id,_that.ownerId,_that.storeName,_that.storeAddress,_that.storePhone,_that.receiptFooter,_that.updatedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +200,10 @@ return $default(_that.storeName,_that.storeAddress,_that.storePhone,_that.receip
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String storeName,  String storeAddress,  String storePhone,  String receiptFooter,  String? updatedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? ownerId,  String storeName,  String storeAddress,  String storePhone,  String receiptFooter,  String? updatedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.storeName,_that.storeAddress,_that.storePhone,_that.receiptFooter,_that.updatedAt);case _:
+return $default(_that.id,_that.ownerId,_that.storeName,_that.storeAddress,_that.storePhone,_that.receiptFooter,_that.updatedAt);case _:
   return null;
 
 }
@@ -213,9 +215,11 @@ return $default(_that.storeName,_that.storeAddress,_that.storePhone,_that.receip
 @JsonSerializable()
 
 class _AppSettings implements AppSettings {
-  const _AppSettings({required this.storeName, required this.storeAddress, required this.storePhone, this.receiptFooter = 'Terima kasih atas kunjungan Anda!', this.updatedAt});
+  const _AppSettings({this.id, this.ownerId, required this.storeName, required this.storeAddress, required this.storePhone, this.receiptFooter = 'Terima kasih atas kunjungan Anda!', this.updatedAt});
   factory _AppSettings.fromJson(Map<String, dynamic> json) => _$AppSettingsFromJson(json);
 
+@override final  String? id;
+@override final  String? ownerId;
 @override final  String storeName;
 @override final  String storeAddress;
 @override final  String storePhone;
@@ -235,16 +239,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.storeName, storeName) || other.storeName == storeName)&&(identical(other.storeAddress, storeAddress) || other.storeAddress == storeAddress)&&(identical(other.storePhone, storePhone) || other.storePhone == storePhone)&&(identical(other.receiptFooter, receiptFooter) || other.receiptFooter == receiptFooter)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.id, id) || other.id == id)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.storeName, storeName) || other.storeName == storeName)&&(identical(other.storeAddress, storeAddress) || other.storeAddress == storeAddress)&&(identical(other.storePhone, storePhone) || other.storePhone == storePhone)&&(identical(other.receiptFooter, receiptFooter) || other.receiptFooter == receiptFooter)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,storeName,storeAddress,storePhone,receiptFooter,updatedAt);
+int get hashCode => Object.hash(runtimeType,id,ownerId,storeName,storeAddress,storePhone,receiptFooter,updatedAt);
 
 @override
 String toString() {
-  return 'AppSettings(storeName: $storeName, storeAddress: $storeAddress, storePhone: $storePhone, receiptFooter: $receiptFooter, updatedAt: $updatedAt)';
+  return 'AppSettings(id: $id, ownerId: $ownerId, storeName: $storeName, storeAddress: $storeAddress, storePhone: $storePhone, receiptFooter: $receiptFooter, updatedAt: $updatedAt)';
 }
 
 
@@ -255,7 +259,7 @@ abstract mixin class _$AppSettingsCopyWith<$Res> implements $AppSettingsCopyWith
   factory _$AppSettingsCopyWith(_AppSettings value, $Res Function(_AppSettings) _then) = __$AppSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- String storeName, String storeAddress, String storePhone, String receiptFooter, String? updatedAt
+ String? id, String? ownerId, String storeName, String storeAddress, String storePhone, String receiptFooter, String? updatedAt
 });
 
 
@@ -272,9 +276,11 @@ class __$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? storeName = null,Object? storeAddress = null,Object? storePhone = null,Object? receiptFooter = null,Object? updatedAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? ownerId = freezed,Object? storeName = null,Object? storeAddress = null,Object? storePhone = null,Object? receiptFooter = null,Object? updatedAt = freezed,}) {
   return _then(_AppSettings(
-storeName: null == storeName ? _self.storeName : storeName // ignore: cast_nullable_to_non_nullable
+id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String?,ownerId: freezed == ownerId ? _self.ownerId : ownerId // ignore: cast_nullable_to_non_nullable
+as String?,storeName: null == storeName ? _self.storeName : storeName // ignore: cast_nullable_to_non_nullable
 as String,storeAddress: null == storeAddress ? _self.storeAddress : storeAddress // ignore: cast_nullable_to_non_nullable
 as String,storePhone: null == storePhone ? _self.storePhone : storePhone // ignore: cast_nullable_to_non_nullable
 as String,receiptFooter: null == receiptFooter ? _self.receiptFooter : receiptFooter // ignore: cast_nullable_to_non_nullable

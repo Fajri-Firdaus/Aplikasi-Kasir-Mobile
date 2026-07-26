@@ -22,6 +22,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   // Sign up fields
   final _signUpFullNameController = TextEditingController();
+  final _signUpStoreNameController = TextEditingController();
   final _signUpEmailController = TextEditingController();
   final _signUpUsernameController = TextEditingController();
   final _signUpPasswordController = TextEditingController();
@@ -35,6 +36,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     _usernameController.dispose();
     _passwordController.dispose();
     _signUpFullNameController.dispose();
+    _signUpStoreNameController.dispose();
     _signUpEmailController.dispose();
     _signUpUsernameController.dispose();
     _signUpPasswordController.dispose();
@@ -65,6 +67,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _handleSignUp() async {
     setState(() { _error = ''; });
     if (_signUpFullNameController.text.trim().isEmpty ||
+        _signUpStoreNameController.text.trim().isEmpty ||
         _signUpEmailController.text.trim().isEmpty ||
         _signUpUsernameController.text.trim().isEmpty ||
         _signUpPasswordController.text.isEmpty ||
@@ -87,11 +90,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             _signUpPasswordController.text,
             fullName: _signUpFullNameController.text.trim(),
             email: _signUpEmailController.text.trim(),
+            storeName: _signUpStoreNameController.text.trim(),
           );
       if (mounted) {
         setState(() {
           _isSignUp = false;
           _signUpFullNameController.clear();
+          _signUpStoreNameController.clear();
           _signUpEmailController.clear();
           _signUpUsernameController.clear();
           _signUpPasswordController.clear();
@@ -272,6 +277,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         _buildLabel('Nama Lengkap (Full Name)'),
         const SizedBox(height: 8),
         _buildBorderedInput(controller: _signUpFullNameController, hint: 'John Doe'),
+        const SizedBox(height: 16),
+        _buildLabel('Nama Toko (Store Name)'),
+        const SizedBox(height: 8),
+        _buildBorderedInput(controller: _signUpStoreNameController, hint: 'Toko Berkah Utama'),
         const SizedBox(height: 16),
         _buildLabel('Email'),
         const SizedBox(height: 8),

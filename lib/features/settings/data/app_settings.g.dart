@@ -7,6 +7,8 @@ part of 'app_settings.dart';
 // **************************************************************************
 
 _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
+  id: json['id'] as String?,
+  ownerId: json['ownerId'] as String?,
   storeName: json['storeName'] as String,
   storeAddress: json['storeAddress'] as String,
   storePhone: json['storePhone'] as String,
@@ -17,6 +19,8 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
 
 Map<String, dynamic> _$AppSettingsToJson(_AppSettings instance) =>
     <String, dynamic>{
+      'id': instance.id,
+      'ownerId': instance.ownerId,
       'storeName': instance.storeName,
       'storeAddress': instance.storeAddress,
       'storePhone': instance.storePhone,

@@ -181,12 +181,14 @@ class ReportLocalRepository {
   ReportLocalRepository(this._dbService);
 
   // Home Performance - Today Summary
-  Future<FinancialSummary> getTodaySummary() async {
+  // Home Performance - Today Summary
+  Future<FinancialSummary> getTodaySummary({String? storeId}) async {
     final now = DateTime.now();
-    return getFinancialSummary(now, now);
+    return getFinancialSummary(now, now, storeId: storeId);
   }
 
-  Future<FinancialSummary> getFinancialSummary(DateTime start, DateTime end) async {
+  Future<FinancialSummary> getFinancialSummary(DateTime start, DateTime end, {String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
 
     final startOfDay = DateTime(start.year, start.month, start.day, 0, 0, 0);
@@ -201,9 +203,9 @@ class ReportLocalRepository {
         COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS total_hpp
       FROM transactions t
       LEFT JOIN transaction_details td ON t.id = td.transaction_id
-      WHERE t.status != 'void'
+      WHERE t.store_id = ? AND t.status != 'void'
       GROUP BY t.id
-    ''');
+    ''', [activeStoreId]);
 
     double revenue = 0.0;
     double hpp = 0.0;
@@ -234,7 +236,8 @@ class ReportLocalRepository {
     );
   }
 
-  Future<List<HourlySales>> getTodayHourlySales() async {
+  Future<List<HourlySales>> getTodayHourlySales({String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
@@ -243,8 +246,8 @@ class ReportLocalRepository {
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT id, created_at, total_amount, status
       FROM transactions
-      WHERE status != 'void'
-    ''');
+      WHERE store_id = ? AND status != 'void'
+    ''', [activeStoreId]);
 
     final Map<int, double> hourlyMap = {};
 
@@ -272,7 +275,8 @@ class ReportLocalRepository {
     return result;
   }
 
-  Future<List<DailySales>> getWeeklyDailySales(DateTime monday, DateTime sunday) async {
+  Future<List<DailySales>> getWeeklyDailySales(DateTime monday, DateTime sunday, {String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final startOfDay = DateTime(monday.year, monday.month, monday.day, 0, 0, 0);
     final endOfDay = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59, 999);
@@ -280,8 +284,8 @@ class ReportLocalRepository {
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT id, created_at, total_amount, status
       FROM transactions
-      WHERE status != 'void'
-    ''');
+      WHERE store_id = ? AND status != 'void'
+    ''', [activeStoreId]);
 
     final Map<String, double> salesMap = {};
 
@@ -313,7 +317,8 @@ class ReportLocalRepository {
     });
   }
 
-  Future<List<WeeklySales>> getMonthlyWeeklySales(DateTime monthStart, DateTime monthEnd) async {
+  Future<List<WeeklySales>> getMonthlyWeeklySales(DateTime monthStart, DateTime monthEnd, {String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final startOfDay = DateTime(monthStart.year, monthStart.month, monthStart.day, 0, 0, 0);
     final endOfDay = DateTime(monthEnd.year, monthEnd.month, monthEnd.day, 23, 59, 59, 999);
@@ -321,8 +326,8 @@ class ReportLocalRepository {
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT id, created_at, total_amount, status
       FROM transactions
-      WHERE status != 'void'
-    ''');
+      WHERE store_id = ? AND status != 'void'
+    ''', [activeStoreId]);
 
     final Map<int, double> daySalesMap = {};
 
@@ -380,7 +385,8 @@ class ReportLocalRepository {
     return buckets;
   }
 
-  Future<List<TopProduct>> getTopProducts(DateTime start, DateTime end) async {
+  Future<List<TopProduct>> getTopProducts(DateTime start, DateTime end, {String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final startOfDay = DateTime(start.year, start.month, start.day, 0, 0, 0);
     final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
@@ -396,8 +402,8 @@ class ReportLocalRepository {
       FROM products p
       LEFT JOIN transaction_details td ON p.id = td.product_id
       LEFT JOIN transactions t ON td.transaction_id = t.id
-      WHERE p.is_active = 1
-    ''');
+      WHERE p.store_id = ? AND p.is_active = 1
+    ''', [activeStoreId]);
 
     final Map<String, Map<String, dynamic>> productStats = {};
 
@@ -445,16 +451,17 @@ class ReportLocalRepository {
     return list;
   }
 
-  Future<List<LowStockItem>> getLowStockProducts() async {
+  Future<List<LowStockItem>> getLowStockProducts({String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT p.name, p.stock, COALESCE(c.name, 'Tanpa Kategori') as category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = 1 AND p.stock <= 10
+      WHERE p.store_id = ? AND p.is_active = 1 AND p.stock <= 10
       ORDER BY p.stock ASC 
-      LIMIT 3
-    ''');
+      LIMIT 10
+    ''', [activeStoreId]);
 
     return maps.map((row) {
       return LowStockItem(
@@ -465,33 +472,36 @@ class ReportLocalRepository {
     }).toList();
   }
 
-  Future<List<CashierPerformance>> getCashierPerformance() async {
+  Future<List<CashierPerformance>> getCashierPerformance({String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
-          u.full_name AS username,
-          COUNT(DISTINCT t.id) AS total_transaksi_ditangani,
-          SUM(t.total_amount) AS total_nominal_penjualan
+        COALESCE(u.full_name, u.username, 'Kasir') as username,
+        COUNT(DISTINCT t.id) as total_txns,
+        COALESCE(SUM(t.total_amount), 0.0) as total_sales
       FROM transactions t
       JOIN shifts s ON t.shift_id = s.id
       JOIN users u ON s.user_id = u.id
-      WHERE t.status != 'void'
+      WHERE t.store_id = ? AND t.status != 'void'
       GROUP BY u.id
-      ORDER BY total_nominal_penjualan DESC
-    ''');
+      ORDER BY total_sales DESC
+    ''', [activeStoreId]);
 
     return maps.map((row) {
       return CashierPerformance(
         username: (row['username'] ?? 'User') as String,
-        totalTransactions: (row['total_transaksi_ditangani'] as int? ?? 0),
-        totalSales: (row['total_nominal_penjualan'] as num? ?? 0.0).toDouble(),
+        totalTransactions: (row['total_txns'] as int? ?? 0),
+        totalSales: (row['total_sales'] as num? ?? 0.0).toDouble(),
       );
     }).toList();
   }
 
   // --- X/Z Report Specific Queries ---
-  Future<ShiftSummary?> getShiftSummary(int shiftId) async {
+  // --- X/Z Report Specific Queries ---
+  Future<ShiftSummary?> getShiftSummary(dynamic rawShiftId) async {
     final db = await _dbService.database;
+    final shiftId = rawShiftId.toString();
 
     final List<Map<String, dynamic>> shiftMaps = await db.query(
       'shifts',
@@ -506,7 +516,7 @@ class ReportLocalRepository {
       'users',
       columns: ['full_name'],
       where: 'id = ?',
-      whereArgs: [shiftMap['user_id']],
+      whereArgs: [shiftMap['user_id'].toString()],
     );
     final username = userMaps.isNotEmpty ? (userMaps.first['full_name'] as String? ?? 'Unknown') : 'Unknown';
 
@@ -545,11 +555,11 @@ class ReportLocalRepository {
     final shiftNumber = shiftMap['shift_number'] as int? ?? 1;
 
     return ShiftSummary(
-      shiftId: shiftId.toString(),
-      userId: shiftMap['user_id'].toString(),
+      shiftId: shiftId,
+      userId: shiftMap['user_id']?.toString() ?? '',
       username: username,
-      startTime: shiftMap['start_time'] as String,
-      endTime: shiftMap['end_time'] as String?,
+      startTime: shiftMap['start_time']?.toString() ?? DateTime.now().toIso8601String(),
+      endTime: shiftMap['end_time']?.toString(),
       startingCash: startingCash,
       endingCash: endingCash,
       totalSalesCash: cashSales,
@@ -563,31 +573,35 @@ class ReportLocalRepository {
     );
   }
 
-  Future<ShiftSummary?> getActiveShiftSummary() async {
+  Future<ShiftSummary?> getActiveShiftSummary({String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'shifts',
       columns: ['id'],
-      where: "status = 'open'",
+      where: "store_id = ? AND status = 'open'",
+      whereArgs: [activeStoreId],
       limit: 1,
     );
 
     if (maps.isEmpty) return null;
-    final activeShiftId = maps.first['id'] as int;
+    final activeShiftId = maps.first['id'].toString();
     return getShiftSummary(activeShiftId);
   }
 
-  Future<List<ShiftSummary>> getClosedShifts() async {
+  Future<List<ShiftSummary>> getClosedShifts({String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'shifts',
-      where: "status = 'closed'",
+      where: "store_id = ? AND status = 'closed'",
+      whereArgs: [activeStoreId],
       orderBy: 'end_time DESC',
     );
 
     final List<ShiftSummary> list = [];
     for (final map in maps) {
-      final summary = await getShiftSummary(map['id'] as int);
+      final summary = await getShiftSummary(map['id'].toString());
       if (summary != null) {
         list.add(summary);
       }
@@ -595,14 +609,15 @@ class ReportLocalRepository {
     return list;
   }
 
-  Future<DailyReportSummary?> getDailyReportSummary(String dateStr) async {
+  Future<DailyReportSummary?> getDailyReportSummary(String dateStr, {String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
 
     final List<Map<String, dynamic>> shifts = await db.rawQuery('''
-      SELECT id
+      SELECT id 
       FROM shifts
-      WHERE DATE(start_time, 'localtime') = ?
-    ''', [dateStr]);
+      WHERE store_id = ? AND DATE(start_time, 'localtime') = ?
+    ''', [activeStoreId, dateStr]);
 
     if (shifts.isEmpty) return null;
 
@@ -614,7 +629,7 @@ class ReportLocalRepository {
     int totalTransactions = 0;
 
     for (final s in shifts) {
-      final shiftId = s['id'] as int;
+      final shiftId = s['id'].toString();
       final summary = await getShiftSummary(shiftId);
       if (summary != null) {
         totalStartingCash += summary.startingCash;
@@ -630,7 +645,7 @@ class ReportLocalRepository {
     
     double totalDiscrepancy = 0.0;
     for (final s in shifts) {
-      final shiftId = s['id'] as int;
+      final shiftId = s['id'].toString();
       final summary = await getShiftSummary(shiftId);
       if (summary != null && summary.status == 'closed') {
         totalDiscrepancy += summary.discrepancy;
@@ -651,20 +666,22 @@ class ReportLocalRepository {
     );
   }
 
-  Future<List<DailyReportSummary>> getDailyReportsHistory() async {
+  Future<List<DailyReportSummary>> getDailyReportsHistory({String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
 
     final List<Map<String, dynamic>> datesMaps = await db.rawQuery('''
       SELECT DISTINCT DATE(start_time, 'localtime') as date_str
       FROM shifts
+      WHERE store_id = ?
       ORDER BY date_str DESC
-    ''');
+    ''', [activeStoreId]);
 
     final List<DailyReportSummary> list = [];
     for (final row in datesMaps) {
       final dateStr = row['date_str'] as String?;
       if (dateStr != null) {
-        final summary = await getDailyReportSummary(dateStr);
+        final summary = await getDailyReportSummary(dateStr, storeId: activeStoreId);
         if (summary != null) {
           list.add(summary);
         }
@@ -673,27 +690,28 @@ class ReportLocalRepository {
     return list;
   }
 
-  Future<CustomerReportSummary> getCustomerReportSummary({DateTime? startDate, DateTime? endDate}) async {
+  Future<CustomerReportSummary> getCustomerReportSummary({DateTime? startDate, DateTime? endDate, String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
 
-    final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM customers');
+    final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM customers WHERE store_id = ?', [activeStoreId]);
     final totalCustomers = countResult.isNotEmpty ? ((countResult.first['count'] as int?) ?? 0) : 0;
 
     String dateFilter = '';
-    List<dynamic> whereArgs = [];
+    List<dynamic> whereArgs = [activeStoreId];
 
     if (startDate != null && endDate != null) {
       final startStr = '${startDate.toIso8601String().split('T').first} 00:00:00';
       final endStr = '${endDate.toIso8601String().split('T').first} 23:59:59';
       dateFilter = " AND DATETIME(t.created_at, 'localtime') BETWEEN ? AND ? ";
-      whereArgs = [startStr, endStr];
+      whereArgs = [activeStoreId, startStr, endStr];
     }
 
     final transResult = await db.rawQuery(
       '''
       SELECT COUNT(*) as trans_count, COALESCE(SUM(t.total_amount), 0.0) as total_revenue
       FROM transactions t
-      WHERE t.customer_id IS NOT NULL AND t.customer_id != '' AND t.customer_id != '0' AND t.customer_id != 0 AND t.status != 'void' $dateFilter
+      WHERE t.store_id = ? AND t.customer_id IS NOT NULL AND t.customer_id != '' AND t.customer_id != '0' AND t.customer_id != 0 AND t.status != 'void' $dateFilter
       ''',
       whereArgs,
     );
@@ -707,7 +725,7 @@ class ReportLocalRepository {
       SELECT c.id, c.name, c.phone, COUNT(t.id) as trans_count, COALESCE(SUM(t.total_amount), 0.0) as total_spent
       FROM customers c
       JOIN transactions t ON CAST(c.id AS TEXT) = CAST(t.customer_id AS TEXT)
-      WHERE t.status != 'void' $dateFilter
+      WHERE c.store_id = ? AND t.status != 'void' $dateFilter
       GROUP BY c.id, c.name, c.phone
       ORDER BY total_spent DESC
       LIMIT 10

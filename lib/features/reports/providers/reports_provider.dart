@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/report_local_repository.dart';
 import 'transactions_report_provider.dart';
 import '../../transactions/data/transaction_local_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class ReportData {
   final double totalRevenue;
@@ -47,8 +48,10 @@ class ReportsNotifier extends Notifier<ReportData> {
   @override
   ReportData build() {
     _repository = ref.watch(reportRepositoryProvider);
+    final storeId = ref.watch(activeStoreIdProvider);
+
     // Initial fetch for today
-    Future.microtask(() => loadReportData(DateTime.now(), DateTime.now()));
+    Future.microtask(() => loadReportData(DateTime.now(), DateTime.now(), storeId: storeId));
     
     return ReportData(
       totalRevenue: 0.0,
@@ -66,8 +69,9 @@ class ReportsNotifier extends Notifier<ReportData> {
     );
   }
 
-  Future<void> loadReportData(DateTime start, DateTime end) async {
+  Future<void> loadReportData(DateTime start, DateTime end, {String? storeId}) async {
     try {
+      final activeStoreId = storeId ?? ref.read(activeStoreIdProvider);
       final now = DateTime.now();
 
       // Calculate Monday to Sunday for current week
@@ -78,15 +82,15 @@ class ReportsNotifier extends Notifier<ReportData> {
       final monthStart = DateTime(now.year, now.month, 1);
       final monthEnd = DateTime(now.year, now.month + 1, 0);
 
-      final summary = await _repository.getFinancialSummary(start, end);
+      final summary = await _repository.getFinancialSummary(start, end, storeId: activeStoreId);
 
       // Fetch hourly sales, weekly sales (Mon-Sun), monthly sales, top products, low stock, and customer summary
-      final List<HourlySales> hourly = await _repository.getTodayHourlySales();
-      final List<DailySales> weeklyDaily = await _repository.getWeeklyDailySales(monday, sunday);
-      final List<WeeklySales> monthlyWeekly = await _repository.getMonthlyWeeklySales(monthStart, monthEnd);
-      final List<TopProduct> top = await _repository.getTopProducts(start, end);
-      final List<LowStockItem> lowStock = await _repository.getLowStockProducts();
-      final CustomerReportSummary customerSum = await _repository.getCustomerReportSummary(startDate: start, endDate: end);
+      final List<HourlySales> hourly = await _repository.getTodayHourlySales(storeId: activeStoreId);
+      final List<DailySales> weeklyDaily = await _repository.getWeeklyDailySales(monday, sunday, storeId: activeStoreId);
+      final List<WeeklySales> monthlyWeekly = await _repository.getMonthlyWeeklySales(monthStart, monthEnd, storeId: activeStoreId);
+      final List<TopProduct> top = await _repository.getTopProducts(start, end, storeId: activeStoreId);
+      final List<LowStockItem> lowStock = await _repository.getLowStockProducts(storeId: activeStoreId);
+      final CustomerReportSummary customerSum = await _repository.getCustomerReportSummary(startDate: start, endDate: end, storeId: activeStoreId);
 
       // Ensure all 24 hours are represented, mapping DB's 00:00 to 24:00 if needed
       final List<HourlySales> fullHourly = List.generate(24, (index) {
@@ -109,21 +113,23 @@ class ReportsNotifier extends Notifier<ReportData> {
       final double weeklyTotal = weeklyDaily.fold(0.0, (sum, item) => sum + item.totalSales);
       final double monthlyTotal = monthlyWeekly.fold(0.0, (sum, item) => sum + item.totalSales);
 
-      state = ReportData(
-        totalRevenue: summary.totalRevenue,
-        totalTransactions: summary.totalTransactions,
-        totalExpense: summary.totalHpp,
-        startDate: start,
-        endDate: end,
-        hourlySales: fullHourly,
-        weeklyDailySales: weeklyDaily,
-        weeklyTotalRevenue: weeklyTotal,
-        monthlyWeeklySales: monthlyWeekly,
-        monthlyTotalRevenue: monthlyTotal,
-        topProducts: top,
-        lowStockProducts: lowStock,
-        customerSummary: customerSum,
-      );
+      if (ref.mounted) {
+        state = ReportData(
+          totalRevenue: summary.totalRevenue,
+          totalTransactions: summary.totalTransactions,
+          totalExpense: summary.totalHpp,
+          startDate: start,
+          endDate: end,
+          hourlySales: fullHourly,
+          weeklyDailySales: weeklyDaily,
+          weeklyTotalRevenue: weeklyTotal,
+          monthlyWeeklySales: monthlyWeekly,
+          monthlyTotalRevenue: monthlyTotal,
+          topProducts: top,
+          lowStockProducts: lowStock,
+          customerSummary: customerSum,
+        );
+      }
     } catch (e) {
       // Handle error safely if needed
     }
@@ -131,11 +137,13 @@ class ReportsNotifier extends Notifier<ReportData> {
 
   Future<void> refresh() async {
     ref.invalidate(recentTransactionsProvider);
-    await loadReportData(state.startDate, state.endDate);
+    final storeId = ref.read(activeStoreIdProvider);
+    await loadReportData(state.startDate, state.endDate, storeId: storeId);
   }
 
   void setFilter({required DateTime startDate, required DateTime endDate}) {
-    loadReportData(startDate, endDate);
+    final storeId = ref.read(activeStoreIdProvider);
+    loadReportData(startDate, endDate, storeId: storeId);
   }
 }
 
@@ -149,22 +157,36 @@ class ActiveShiftNotifier extends AsyncNotifier<ShiftSummary?> {
   FutureOr<ShiftSummary?> build() async {
     _reportRepository = ref.watch(reportRepositoryProvider);
     _transactionRepository = ref.watch(transactionRepositoryProvider);
-    return _reportRepository.getActiveShiftSummary();
+    final storeId = ref.watch(activeStoreIdProvider);
+    try {
+      return await _reportRepository.getActiveShiftSummary(storeId: storeId);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> refreshShift() async {
+    final storeId = ref.read(activeStoreIdProvider);
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _reportRepository.getActiveShiftSummary());
+    final res = await AsyncValue.guard(() => _reportRepository.getActiveShiftSummary(storeId: storeId));
+    if (ref.mounted) {
+      state = res;
+    }
   }
 
   Future<void> openNewShift(String userId, double startingCash) async {
+    final storeId = ref.read(activeStoreIdProvider);
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      await _transactionRepository.openShift(userId, startingCash);
-      // Also refresh financial reports so dashboard/reports update immediately
-      ref.read(reportsProvider.notifier).refresh();
-      return _reportRepository.getActiveShiftSummary();
+    final res = await AsyncValue.guard(() async {
+      await _transactionRepository.openShift(userId, startingCash, storeId: storeId);
+      if (ref.mounted) {
+        ref.read(reportsProvider.notifier).refresh();
+      }
+      return _reportRepository.getActiveShiftSummary(storeId: storeId);
     });
+    if (ref.mounted) {
+      state = res;
+    }
   }
 
   Future<ShiftSummary?> closeActiveShift(double endingCash) async {
@@ -177,7 +199,7 @@ class ActiveShiftNotifier extends AsyncNotifier<ShiftSummary?> {
     // We run the operations and update state inside guard
     state = await AsyncValue.guard(() async {
       await _transactionRepository.closeShift(current.shiftId, endingCash);
-      closedSummary = await _reportRepository.getShiftSummary(int.parse(current.shiftId));
+      closedSummary = await _reportRepository.getShiftSummary(current.shiftId);
       
       // Refresh general reports and history
       ref.read(reportsProvider.notifier).refresh();
@@ -199,12 +221,21 @@ class ClosedShiftsNotifier extends AsyncNotifier<List<ShiftSummary>> {
   @override
   FutureOr<List<ShiftSummary>> build() async {
     _reportRepository = ref.watch(reportRepositoryProvider);
-    return _reportRepository.getClosedShifts();
+    final storeId = ref.watch(activeStoreIdProvider);
+    try {
+      return await _reportRepository.getClosedShifts(storeId: storeId);
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> refreshHistory() async {
+    final storeId = ref.read(activeStoreIdProvider);
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _reportRepository.getClosedShifts());
+    final res = await AsyncValue.guard(() => _reportRepository.getClosedShifts(storeId: storeId));
+    if (ref.mounted) {
+      state = res;
+    }
   }
 }
 
@@ -216,12 +247,21 @@ class DailyReportsNotifier extends AsyncNotifier<List<DailyReportSummary>> {
   @override
   FutureOr<List<DailyReportSummary>> build() async {
     _reportRepository = ref.watch(reportRepositoryProvider);
-    return _reportRepository.getDailyReportsHistory();
+    final storeId = ref.watch(activeStoreIdProvider);
+    try {
+      return await _reportRepository.getDailyReportsHistory(storeId: storeId);
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> refreshHistory() async {
+    final storeId = ref.read(activeStoreIdProvider);
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _reportRepository.getDailyReportsHistory());
+    final res = await AsyncValue.guard(() => _reportRepository.getDailyReportsHistory(storeId: storeId));
+    if (ref.mounted) {
+      state = res;
+    }
   }
 }
 

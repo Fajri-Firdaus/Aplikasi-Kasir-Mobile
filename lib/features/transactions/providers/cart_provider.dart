@@ -6,6 +6,7 @@ import '../../products/data/product.dart';
 import '../../products/providers/product_provider.dart';
 import '../../reports/providers/reports_provider.dart';
 import '../../reports/providers/transactions_report_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(CartNotifier.new);
 
@@ -63,8 +64,9 @@ class CartNotifier extends Notifier<List<CartItem>> {
     final repository = ref.read(transactionRepositoryProvider);
     final productNotifier = ref.read(productNotifierProvider.notifier);
 
+    final storeId = ref.read(activeStoreIdProvider);
     // Ensure active shift exists
-    final activeShift = await repository.getActiveShift();
+    final activeShift = await repository.getActiveShift(storeId: storeId);
     if (activeShift == null) {
       throw Exception('Shift harus dibuka terlebih dahulu sebelum melakukan transaksi.');
     }

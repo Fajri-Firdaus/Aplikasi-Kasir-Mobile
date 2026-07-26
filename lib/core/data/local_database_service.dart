@@ -42,16 +42,61 @@ class LocalDatabaseService {
   }
 
   Future<void> _onOpen(Database db) async {
+    // Migration helper for existing DBs
     try {
-      await db.execute('ALTER TABLE users ADD COLUMN admin_id INTEGER');
-    } catch (_) {
-      // Column already exists
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS stores (
+          id TEXT PRIMARY KEY,
+          owner_id TEXT NOT NULL,
+          store_name TEXT NOT NULL,
+          store_address TEXT,
+          store_phone TEXT,
+          receipt_footer TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+    } catch (_) {}
+
+    try { await db.execute('ALTER TABLE users ADD COLUMN admin_id TEXT'); } catch (_) {}
+    try { await db.execute('ALTER TABLE users ADD COLUMN store_id TEXT'); } catch (_) {}
+    try { await db.execute('ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1'); } catch (_) {}
+    try { await db.execute('ALTER TABLE categories ADD COLUMN store_id TEXT'); } catch (_) {}
+    try { await db.execute('ALTER TABLE categories ADD COLUMN is_active INTEGER DEFAULT 1'); } catch (_) {}
+    try { await db.execute('ALTER TABLE products ADD COLUMN store_id TEXT'); } catch (_) {}
+    try { await db.execute('ALTER TABLE products ADD COLUMN is_active INTEGER DEFAULT 1'); } catch (_) {}
+    try { await db.execute('ALTER TABLE customers ADD COLUMN store_id TEXT'); } catch (_) {}
+    try { await db.execute('ALTER TABLE shifts ADD COLUMN store_id TEXT'); } catch (_) {}
+    try { await db.execute('ALTER TABLE shifts ADD COLUMN shift_number INTEGER DEFAULT 1'); } catch (_) {}
+    try { await db.execute('ALTER TABLE transactions ADD COLUMN store_id TEXT'); } catch (_) {}
+
+    // Backfill default store for existing data if store_id is null
+    const defaultStoreId = 'store-uuid-001';
+    const defaultAdminId = '1';
+
+    final storeCheck = await db.rawQuery("SELECT id FROM stores WHERE id = ?", [defaultStoreId]);
+    if (storeCheck.isEmpty) {
+      await db.insert('stores', {
+        'id': defaultStoreId,
+        'owner_id': defaultAdminId,
+        'store_name': 'Mobile POS Dashboard',
+        'store_address': 'Jl. Merdeka No. 123',
+        'store_phone': '08123456789',
+        'receipt_footer': 'Terima kasih atas kunjungan Anda!',
+      });
     }
-    try {
-      await db.execute('ALTER TABLE shifts ADD COLUMN shift_number INTEGER DEFAULT 1');
-    } catch (_) {
-      // Column already exists
-    }
+
+    await db.execute("UPDATE users SET store_id = '$defaultStoreId' WHERE store_id IS NULL");
+    await db.execute("UPDATE categories SET store_id = '$defaultStoreId' WHERE store_id IS NULL");
+    await db.execute("UPDATE products SET store_id = '$defaultStoreId' WHERE store_id IS NULL");
+    await db.execute("UPDATE customers SET store_id = '$defaultStoreId' WHERE store_id IS NULL");
+    await db.execute("UPDATE shifts SET store_id = '$defaultStoreId' WHERE store_id IS NULL");
+    await db.execute("UPDATE transactions SET store_id = '$defaultStoreId' WHERE store_id IS NULL");
+
+    // Indexes
+    try { await db.execute('CREATE INDEX IF NOT EXISTS idx_products_store ON products(store_id)'); } catch (_) {}
+    try { await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_store ON transactions(store_id)'); } catch (_) {}
+    try { await db.execute('CREATE INDEX IF NOT EXISTS idx_shifts_store ON shifts(store_id)'); } catch (_) {}
+    try { await db.execute('CREATE INDEX IF NOT EXISTS idx_users_store ON users(store_id)'); } catch (_) {}
   }
 
   Future<void> _onConfigure(Database db) async {
@@ -60,56 +105,85 @@ class LocalDatabaseService {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // 1. Table users
+    const defaultAdminId = '1';
+    const defaultStoreId = 'store-uuid-001';
+    const defaultCategoryId = 'cat-uuid-001';
+    const defaultProductId = '1';
+
+    // 1. Table stores
+    await db.execute('''
+      CREATE TABLE stores (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        store_name TEXT NOT NULL,
+        store_address TEXT,
+        store_phone TEXT,
+        receipt_footer TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    // 2. Table users
     await db.execute('''
       CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT PRIMARY KEY,
         full_name TEXT,
         email TEXT UNIQUE,
         username TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'cashier',
-        admin_id INTEGER,
+        admin_id TEXT,
+        store_id TEXT,
+        is_active INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (admin_id) REFERENCES users(id)
+        FOREIGN KEY (store_id) REFERENCES stores(id)
       )
     ''');
 
-    // 2. Table categories
+    // 3. Table categories
     await db.execute('''
       CREATE TABLE categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE
+        id TEXT PRIMARY KEY,
+        store_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        FOREIGN KEY (store_id) REFERENCES stores(id),
+        UNIQUE(store_id, name)
       )
     ''');
 
-    // 3. Table products
+    // 4. Table products
     await db.execute('''
       CREATE TABLE products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sku TEXT UNIQUE,
+        id TEXT PRIMARY KEY,
+        store_id TEXT NOT NULL,
+        sku TEXT,
         name TEXT NOT NULL,
-        category_id INTEGER,
+        category_id TEXT,
         buy_price REAL NOT NULL DEFAULT 0.0,
         sell_price REAL NOT NULL DEFAULT 0.0,
         stock INTEGER DEFAULT 0,
         image_path TEXT,
         is_active INTEGER DEFAULT 1,
-        FOREIGN KEY (category_id) REFERENCES categories(id)
+        FOREIGN KEY (store_id) REFERENCES stores(id),
+        FOREIGN KEY (category_id) REFERENCES categories(id),
+        UNIQUE(store_id, sku)
       )
     ''');
 
-    // 4. Table customers
+    // 5. Table customers
     await db.execute('''
       CREATE TABLE customers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT PRIMARY KEY,
+        store_id TEXT NOT NULL,
         name TEXT NOT NULL,
         phone TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id)
       )
     ''');
 
-    // 5. Table store_settings (Singleton: id must be 1)
+    // 6. Table store_settings (Legacy compatibility singleton view)
     await db.execute('''
       CREATE TABLE store_settings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -121,43 +195,47 @@ class LocalDatabaseService {
       )
     ''');
 
-    // 6. Table shifts
+    // 7. Table shifts
     await db.execute('''
       CREATE TABLE shifts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
+        id TEXT PRIMARY KEY,
+        store_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
         start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         end_time TIMESTAMP,
         starting_cash REAL DEFAULT 0.0,
         ending_cash REAL DEFAULT 0.0,
         status TEXT CHECK (status IN ('open', 'closed')) DEFAULT 'open',
         shift_number INTEGER DEFAULT 1,
+        FOREIGN KEY (store_id) REFERENCES stores(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     ''');
 
-    // 7. Table transactions
+    // 8. Table transactions
     await db.execute('''
       CREATE TABLE transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        shift_id INTEGER NOT NULL,
-        customer_id INTEGER,
+        id TEXT PRIMARY KEY,
+        store_id TEXT NOT NULL,
+        shift_id TEXT NOT NULL,
+        customer_id TEXT,
         total_amount REAL NOT NULL,
         payment_method TEXT NOT NULL,
         cash_received REAL DEFAULT 0.0,
         status TEXT CHECK (status IN ('completed', 'void')) DEFAULT 'completed',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id),
         FOREIGN KEY (shift_id) REFERENCES shifts(id),
         FOREIGN KEY (customer_id) REFERENCES customers(id)
       )
     ''');
 
-    // 8. Table transaction_details
+    // 9. Table transaction_details
     await db.execute('''
       CREATE TABLE transaction_details (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        transaction_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
+        id TEXT PRIMARY KEY,
+        transaction_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
         quantity INTEGER NOT NULL,
         buy_price_at_sale REAL NOT NULL,
         sell_price_at_sale REAL NOT NULL,
@@ -166,17 +244,37 @@ class LocalDatabaseService {
       )
     ''');
 
+    // Indexes
+    await db.execute('CREATE INDEX idx_products_store ON products(store_id)');
+    await db.execute('CREATE INDEX idx_transactions_store ON transactions(store_id)');
+    await db.execute('CREATE INDEX idx_shifts_store ON shifts(store_id)');
+    await db.execute('CREATE INDEX idx_users_store ON users(store_id)');
+
     // --- Seed Initial Data ---
-    // Seed default admin user (hash of '123456' using a simple base64 simulation or standard verification)
+    // Seed default store first (required by users.store_id Foreign Key)
+    await db.insert('stores', {
+      'id': defaultStoreId,
+      'owner_id': defaultAdminId,
+      'store_name': 'Mobile POS Dashboard',
+      'store_address': 'Jl. Merdeka No. 123',
+      'store_phone': '08123456789',
+      'receipt_footer': 'Terima kasih atas kunjungan Anda!',
+    });
+
+    // Seed default admin user
     await db.insert('users', {
+      'id': defaultAdminId,
       'full_name': 'Admin System',
       'email': 'admin@pos.com',
       'username': 'admin',
       'password': 'MTIzNDU2', // Base64 for '123456'
       'role': 'admin',
+      'store_id': defaultStoreId,
+      'admin_id': defaultAdminId,
+      'is_active': 1,
     });
 
-    // Seed default store settings
+    // Seed legacy store_settings for fallback compatibility
     await db.insert('store_settings', {
       'id': 1,
       'store_name': 'Mobile POS Dashboard',
@@ -185,17 +283,21 @@ class LocalDatabaseService {
       'receipt_footer': 'Terima kasih atas kunjungan Anda!',
     });
 
-    // Seed default categories
-    final categoryId = await db.insert('categories', {
+    // Seed default category
+    await db.insert('categories', {
+      'id': defaultCategoryId,
+      'store_id': defaultStoreId,
       'name': 'Makanan',
+      'is_active': 1,
     });
 
-    // Seed default products (e.g. ID 1, Nasi Goreng Spesial, stock 50)
+    // Seed default product
     await db.insert('products', {
-      'id': 1,
+      'id': defaultProductId,
+      'store_id': defaultStoreId,
       'sku': 'MK001',
       'name': 'Nasi Goreng Spesial',
-      'category_id': categoryId,
+      'category_id': defaultCategoryId,
       'buy_price': 15000.0,
       'sell_price': 25000.0,
       'stock': 50,

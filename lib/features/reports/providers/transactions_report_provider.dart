@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../transactions/data/transaction.dart';
 import '../../transactions/data/transaction_local_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 
 enum TransactionFilterPeriod {
   today,
@@ -47,7 +48,8 @@ class AllTransactionsState {
 
 final recentTransactionsProvider = FutureProvider.autoDispose<List<Transaction>>((ref) async {
   final repo = ref.watch(transactionRepositoryProvider);
-  return repo.getRecentTransactions(limit: 10);
+  final storeId = ref.watch(activeStoreIdProvider);
+  return repo.getRecentTransactions(limit: 10, storeId: storeId);
 });
 
 final allTransactionsNotifierProvider = NotifierProvider<AllTransactionsNotifier, AllTransactionsState>(
@@ -60,7 +62,9 @@ class AllTransactionsNotifier extends Notifier<AllTransactionsState> {
   @override
   AllTransactionsState build() {
     _repository = ref.watch(transactionRepositoryProvider);
-    Future.microtask(() => filterBy(TransactionFilterPeriod.today));
+    final storeId = ref.watch(activeStoreIdProvider);
+
+    Future.microtask(() => filterBy(TransactionFilterPeriod.today, storeId: storeId));
     return AllTransactionsState(
       period: TransactionFilterPeriod.today,
       transactions: const [],
@@ -68,8 +72,11 @@ class AllTransactionsNotifier extends Notifier<AllTransactionsState> {
     );
   }
 
-  Future<void> filterBy(TransactionFilterPeriod period, {DateTimeRange? customRange}) async {
-    state = state.copyWith(period: period, customRange: customRange, isLoading: true);
+  Future<void> filterBy(TransactionFilterPeriod period, {DateTimeRange? customRange, String? storeId}) async {
+    final activeStoreId = storeId ?? ref.read(activeStoreIdProvider);
+    if (ref.mounted) {
+      state = state.copyWith(period: period, customRange: customRange, isLoading: true);
+    }
 
     final now = DateTime.now();
     DateTime? start;
@@ -101,7 +108,7 @@ class AllTransactionsNotifier extends Notifier<AllTransactionsState> {
     }
 
     try {
-      final txns = await _repository.getFilteredTransactions(startDate: start, endDate: end);
+      final txns = await _repository.getFilteredTransactions(startDate: start, endDate: end, storeId: activeStoreId);
       if (ref.mounted) {
         state = state.copyWith(transactions: txns, isLoading: false);
       }

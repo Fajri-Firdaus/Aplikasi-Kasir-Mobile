@@ -1,226 +1,191 @@
-# Rencana Implementasi Sistem Multi-Toko & Isolasi Data (Multi-Tenancy) - Versi Terakhir (Revisi)
+# Rencana Implementasi Sistem Multi-Toko & Isolasi Data Berbasis Admin (Multi-Tenancy)
 
-Dokumen ini merupakan **rencana arsitektur dan panduan teknis yang telah direvisi** untuk menerapkan isolasi data multi-toko (*Multi-Tenancy*) pada aplikasi **Mobile POS Flutter** dengan pendekatan **Shared Database, Shared Schema**.
-
----
-
-## 1. Pendahuluan & Pergeseran Arsitektur Utama
-
-Berdasarkan revisi strategi terkini, sistem isolasi data ditingkatkan untuk menjamin skalabilitas multi-cabang di masa depan (*cloud-sync ready*) dan menjaga integritas data *offline-first*:
-
-1. **Pergeseran Pengikat Utama (Tenant ID): Dari `admin_id` ke `store_id`**
-   - Operasional toko tidak lagi diikat langsung ke akun `admin_id`, melainkan ke entitas tabel `stores` (*store_id*).
-   - Akun **Admin (Owner)** memiliki satu atau lebih entitas toko di tabel `stores` (`owner_id = user.id`).
-   - Akun **Karyawan/Kasir** terikat pada `store_id` tempat ia ditugaskan oleh Admin.
-   - Semua kasir yang memiliki `store_id` yang sama akan berbagi katalog produk, inventaris, dan konfigurasi toko yang sama.
-
-2. **Penggunaan Primary Key berbasis UUID v4 (`TEXT`)**
-   - Seluruh *Primary Key* (PK) dan *Foreign Key* (FK) pada tabel operasional dan master menggunakan format **UUID v4 (`TEXT`)**, bukan `INTEGER AUTOINCREMENT`.
-   - Hal ini mencegah bentrokan ID (*ID collision*) apabila data dari beberapa perangkat disinkronisasikan di masa depan.
-
-3. **Penerapan Soft Delete (`is_active`)**
-   - Penghapusan data master (seperti kasir, produk, dan kategori) tidak menggunakan perintah SQL `DELETE`.
-   - Menggunakan kolom `is_active` (`INTEGER`: 1 = aktif, 0 = nonaktif/dihapus) untuk menjaga integritas relasi tabel transaksi historis dan laporan keuangan.
-
-4. **Pengindeksan Majemuk (*Composite Indexing*)**
-   - Ditambahkan indeks majemuk pada tabel operasional (seperti `store_id + sku` dan `store_id + created_at`) untuk menjamin kecepatan kueri saat volume data membesar.
+Dokumen ini berisi rencana arsitektur dan langkah-langkah teknis untuk menerapkan sistem isolasi data berbasis akun toko (*Multi-Tenancy*) pada aplikasi **Mobile POS Flutter**.
 
 ---
 
-## 2. Skema Database SQLite Terintegrasi (`local_database_service.dart`)
+## 1. Pendahuluan & Konsep Utama
 
-Berikut adalah *Entity Relationship Diagram (ERD)* yang telah disesuaikan:
+Saat ini, beberapa tabel (seperti `products`, `categories`, `customers`, dan `store_settings`) masih bersifat global atau tunggal (singleton). 
+
+Dengan sistem **Multi-Toko Berbasis Admin**:
+1. **Akun Admin:** Merupakan *owner* dari satu unit toko. Semua data bisnis (produk, inventaris, transaksi, shift, laporan, pelanggan, dan pengaturan toko) terikat secara eksklusif ke ID akun Admin tersebut.
+2. **Akun Karyawan/Kasir:** Dibuat oleh seorang Admin. Akun kasir menyimpan rujukan `admin_id` milik Admin pembuatnya, sehingga saat kasir login, aplikasi secara otomatis menampilkan toko dan konfigurasi milik Admin pengampunya.
+3. **Isolasi Data:** Setiap transaksi, laporan, dan pengaturan yang diakses oleh Admin A tidak akan pernah bercampur atau terlihat oleh Admin B.
+
+---
+
+## 2. Perubahan Skema Database SQLite (`local_database_service.dart`)
+
+Untuk mendukung isolasi data, skema database akan disesuaikan dengan menambahkan kolom rujukan `admin_id` pada setiap tabel utama:
 
 ```mermaid
 erDiagram
-    users ||--o{ stores : "admin memiliki toko (owner_id)"
-    stores ||--o{ users : "toko memiliki kasir (store_id)"
-    stores ||--o{ categories : "pemilik kategori"
-    stores ||--o{ products : "pemilik produk"
-    stores ||--o{ customers : "pemilik pelanggan"
-    stores ||--o{ shifts : "pemilik shift"
-    stores ||--o{ transactions : "pemilik transaksi"
-    transactions ||--o{ transaction_details : "memiliki rincian barang"
-    products ||--o{ transaction_details : "tercatat di rincian"
+    users ||--o{ users : "membuat kasir (admin_id)"
+    users ||--|| store_settings : "memiliki pengaturan toko"
+    users ||--o{ categories : "pemilik kategori"
+    users ||--o{ products : "pemilik produk"
+    users ||--o{ customers : "pemilik pelanggan"
+    users ||--o{ shifts : "pemilik shift"
+    users ||--o{ transactions : "pemilik transaksi"
 
     users {
-        string id PK "UUID v4"
+        int id PK
         string full_name
-        string email
         string username
-        string password
         string role "admin / cashier"
-        string store_id FK "UUID v4 store (null untuk Admin jika belum pilih toko active)"
-        int is_active "1 = aktif, 0 = soft deleted"
+        int admin_id FK "ID admin pengampu (null jika user adalah admin utama)"
     }
-    stores {
-        string id PK "UUID v4"
-        string owner_id FK "Merujuk ke users.id (Admin)"
+    store_settings {
+        int admin_id PK, FK
         string store_name
         string store_address
         string store_phone
         string receipt_footer
-        string created_at
     }
     categories {
-        string id PK "UUID v4"
-        string store_id FK "UUID v4"
+        int id PK
+        int admin_id FK
         string name
-        int is_active "1 = aktif, 0 = soft deleted"
     }
     products {
-        string id PK "UUID v4"
-        string store_id FK "UUID v4"
+        int id PK
+        int admin_id FK
         string sku
         string name
-        string category_id FK "UUID v4"
+        int category_id FK
         double buy_price
         double sell_price
         int stock
-        string image_path
-        int is_active "1 = aktif, 0 = soft deleted"
     }
     customers {
-        string id PK "UUID v4"
-        string store_id FK "UUID v4"
+        int id PK
+        int admin_id FK
         string name
         string phone
-        string created_at
     }
     shifts {
-        string id PK "UUID v4"
-        string store_id FK "UUID v4"
-        string user_id FK "UUID v4 Kasir/User"
-        string start_time
-        string end_time
+        int id PK
+        int admin_id FK
+        int user_id FK
         double starting_cash
-        double ending_cash
-        string status "open / closed"
-        int shift_number
+        string status
     }
     transactions {
-        string id PK "UUID v4"
-        string store_id FK "UUID v4"
-        string shift_id FK "UUID v4"
-        string customer_id FK "UUID v4"
+        int id PK
+        int admin_id FK
+        int shift_id FK
+        int customer_id FK
         double total_amount
-        string payment_method
-        double cash_received
-        string status "completed / void"
-        string created_at
-    }
-    transaction_details {
-        string id PK "UUID v4"
-        string transaction_id FK "UUID v4"
-        string product_id FK "UUID v4"
-        int quantity
-        double buy_price_at_sale
-        double sell_price_at_sale
     }
 ```
 
-### Constraints & Indexes:
-- **`products`:** Batasan `UNIQUE(store_id, sku)`
-- **`categories`:** Batasan `UNIQUE(store_id, name)`
-- **Indeks:**
-  ```sql
-  CREATE INDEX idx_products_store ON products(store_id);
-  CREATE INDEX idx_transactions_store ON transactions(store_id);
-  CREATE INDEX idx_shifts_store ON shifts(store_id);
-  CREATE INDEX idx_users_store ON users(store_id);
-  ```
+### Detail Perubahan Tabel:
+
+1. **Tabel `users`:**
+   - Tambah/pastikan kolom `admin_id INTEGER REFERENCES users(id)`.
+   - Untuk **Admin**: `admin_id` nilainya sama dengan `id` user (atau `null`, di mana penanganan fallback mengarah ke `id` user).
+   - Untuk **Kasir**: `admin_id` diisi dengan `id` Admin yang membuat akun kasir tersebut.
+
+2. **Tabel `store_settings`:**
+   - Ubah dari singleton `CHECK (id = 1)` menjadi tabel terisolasi dengan `admin_id INTEGER PRIMARY KEY REFERENCES users(id)`.
+   - Setiap Admin yang baru terdaftar secara otomatis dibuatkan entri default pengaturan tokonya.
+
+3. **Tabel `categories`:**
+   - Tambahkan `admin_id INTEGER NOT NULL REFERENCES users(id)`.
+   - Batasan Unik diubah menjadi `UNIQUE(admin_id, name)` agar beda toko bisa menggunakan nama kategori yang sama tanpa konflik.
+
+4. **Tabel `products`:**
+   - Tambahkan `admin_id INTEGER NOT NULL REFERENCES users(id)`.
+   - Batasan SKU diubah menjadi `UNIQUE(admin_id, sku)`.
+
+5. **Tabel `customers`:**
+   - Tambahkan `admin_id INTEGER NOT NULL REFERENCES users(id)`.
+
+6. **Tabel `shifts`:**
+   - Tambahkan `admin_id INTEGER NOT NULL REFERENCES users(id)`.
+
+7. **Tabel `transactions`:**
+   - Tambahkan `admin_id INTEGER NOT NULL REFERENCES users(id)`.
 
 ---
 
-## 3. Resolusi Sesi & Riverpod Dependency Injection Defensif
+## 3. Resolusi Sesi & Penentuan Admin ID (`AuthState` & Riverpod)
 
-Untuk mencegah kebocoran data (*data leak*) antar-toko, *Repository* tidak lagi menerima parameter `store_id` secara manual di setiap method. Sebaliknya, `storeId` diinjeksikan langsung saat inisialisasi Repository melalui Riverpod DI:
+Dalam state aplikasi:
+- Dibuat provider `currentAdminIdProvider` yang mengekstrak `admin_id` aktif dari pengguna yang sedang login (`currentUser`):
+  - Jika `role == 'admin'`, `activeAdminId = currentUser.id`.
+  - Jika `role == 'cashier'`, `activeAdminId = currentUser.adminId`.
 
-### A. Provider Store ID Aktif
 ```dart
-final activeStoreIdProvider = Provider<String?>((ref) {
+final activeAdminIdProvider = Provider<int?>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return null;
-  
-  // Jika user adalah kasir, gunakan store_id milik kasir
-  if (user.role == 'cashier') return user.storeId;
-  
-  // Jika user adalah admin, gunakan store_id aktif miliknya
-  return user.storeId;
-});
-```
-
-### B. Injeksi Defensif ke Provider Repository
-```dart
-final productRepositoryProvider = Provider<ProductLocalRepository>((ref) {
-  final storeId = ref.watch(activeStoreIdProvider);
-  if (storeId == null || storeId.isEmpty) {
-    throw Exception('Akses ditolak: Tidak ada toko aktif dalam sesi ini');
-  }
-  final dbService = ref.watch(localDatabaseServiceProvider);
-  return ProductLocalRepository(dbService, storeId);
+  return user.role == 'admin' ? user.id : user.adminId;
 });
 ```
 
 ---
 
-## 4. Perubahan pada Layer Repository & Logika Bisnis
+## 4. Perubahan pada Layer Repository & Business Logic
 
-Setiap kelas *Repository* diperbarui untuk menerima `storeId` pada konstruktor dan menerapkan kueri yang aman:
+Setiap Repository yang melakukan operasi pembacaan, penambahan, pengeditan, atau penghapusan WAJIB memfilter berdasarkan `admin_id`:
 
-1. **`ProductLocalRepository`:**
-   - Pembacaan produk/kategori: `WHERE store_id = ? AND is_active = 1`
-   - Penambahan produk/kategori: Otomatis menyisipkan `store_id` dan membuat UUID v4 baru.
+1. **`UserLocalRepository`:**
+   - Saat Admin menambahkan Kasir baru, otomatis menyisipkan `admin_id = currentAdminId`.
+   - Saat Admin melihat daftar pengguna, hanya menampilkan pengguna yang memiliki `admin_id = currentAdminId`.
 
-2. **`TransactionLocalRepository`:**
-   - Pencatatan transaksi & shift: Otomatis menyisipkan `store_id`.
-   - Riwayat & urutan transaksi harian: `WHERE store_id = ?`.
+2. **`ProductLocalRepository`:**
+   - Kueri produk (`getProducts`, `addProduct`, `updateProduct`) memfilter `WHERE admin_id = ?`.
+   - Kueri kategori (`getCategories`, `addCategory`) memfilter `WHERE admin_id = ?`.
 
-3. **`ReportLocalRepository`:**
-   - Agregasi Keuangan, Top Products, X/Z Report dikalkulasi murni berdasarkan `WHERE store_id = ?`.
+3. **`TransactionLocalRepository`:**
+   - Checkout dan pencatatan shift menyisipkan `admin_id = currentAdminId`.
+   - Riwayat transaksi & perhitungan urutan struk harian memfilter `WHERE admin_id = ?`.
 
-4. **`UserLocalRepository`:**
-   - Admin hanya dapat melihat daftar kasir toko: `WHERE store_id = ? AND is_active = 1`.
-   - Penghapusan Kasir: Menjalankan *Soft Delete* (`UPDATE users SET is_active = 0 WHERE id = ?`). Riwayat transaksi kasir yang dinonaktifkan tetap utuh di tabel `transactions`.
+4. **`ReportLocalRepository`:**
+   - Seluruh agregasi keuangan (omzet, HPP, laba bersih, grafik penjualan, X/Z report) memfilter transaksi berdasarkan `WHERE admin_id = ?`.
 
 5. **`SettingsRepository`:**
-   - Membaca dan mengedit informasi toko dari tabel `stores` menggunakan `WHERE id = ?` (`storeId`).
+   - Membaca dan memperbarui `store_settings` berdasarkan `admin_id = currentAdminId`.
 
 ---
 
-## 5. Strategi Onboarding (Sign Up Admin) & Migrasi Data
+## 5. Strategi Inisialisasi Data & Registrasi Akun Admin Baru
 
-1. **Form Pendaftaran Admin Baru (Sign Up):**
-   - Form pendaftaran mencakup input wajib **Nama Toko** selain Nama Lengkap, Username, Email, dan Password.
-   - Proses pendaftaran:
-     1. Buat UUID v4 untuk Admin & UUID v4 untuk Toko.
-     2. Simpan record di tabel `users` (`role = 'admin'`, `store_id = newStoreId`).
-     3. Simpan record di tabel `stores` (`id = newStoreId`, `owner_id = newAdminId`, `store_name = inputNamaToko`).
-     4. Inisialisasi kategori default (misal: "Umum").
+- **Sign Up Admin Baru:**
+  Saat user mendaftar sebagai Admin baru melalui halaman pendaftaran:
+  1. Buat record user baru role `admin`.
+  2. Inisialisasi entri `store_settings` awal untuk `admin_id` baru tersebut dengan nama toko bawaan (misal: "Toko [Nama Admin]").
+  3. Inisialisasi kategori awal (misal: "Umum" / "Makanan").
 
-2. **Migrasi Data Lama (Database Migration v1 -> v2):**
-   - Untuk data eksisting sebelum pembaruan ini:
-     1. Buat UUID v4 default untuk toko lama.
-     2. Migrasikan tabel `store_settings` lama ke tabel `stores`.
-     3. Konversi seluruh Primary Key dari `INTEGER` ke `UUID v4`.
-     4. Hubungkan seluruh `users`, `products`, `categories`, `customers`, `shifts`, dan `transactions` eksisting ke `store_id` default tersebut.
+- **Migrasi Data Lama (Existing Data):**
+  Untuk memastikan data yang sudah dibuat sebelum fitur ini diterapkan tidak hilang:
+  - Dijalankan migrasi SQLite otomatis yang memperbarui data eksisting (produk, transaksi, shift, pengaturan) agar terhubung ke Admin default (`id = 1`).
 
 ---
 
 ## 6. Rencana Pengujian (Testing Plan)
 
-1. **Unit Testing Isolasi Multi-Toko:**
-   - Memastikan dua toko berbeda (Store A dan Store B) tidak saling membaca produk, transaksi, atau kategori satu sama lain.
-   - Memastikan kueri master hanya mengembalikan item dengan `is_active = 1`.
-2. **Unit Testing Soft Delete:**
-   - Memastikan kasir yang dinonaktifkan (`is_active = 0`) hilang dari daftar kasir aktif, tetapi transaksinya tetap terhitung di laporan keuangan toko.
-3. **Integration Testing Riverpod DI:**
-   - Memastikan pergantian akun/sesi user secara otomatis memicu pembaruan `activeStoreIdProvider` dan me-refresh seluruh data tampilan (Dashboard, POS, Laporan).
+1. **Unit Testing Isolasi Data:**
+   - Pengujian registrasi 2 Admin terpisah (Admin A dan Admin B).
+   - Pengujian penambahan produk oleh Admin A tidak muncul di katalog Admin B.
+   - Pengujian kasir yang dibuat Admin A hanya bisa melihat produk & pengaturan toko milik Admin A.
+2. **Unit Testing Laporan & Struk:**
+   - Memastikan laporan keuangan Admin A 100% independen dari transaksi Admin B.
+   - Memastikan struk transaksi kasir menampilkan nama toko sesuai pengaturan Admin pengampunya.
+3. **Integration & Widget Testing:**
+   - Pengujian alur login -> switch akun admin/kasir lain -> verifikasi pembaruan tampilan antarmuka (Dashboard, POS, Laporan).
 
 ---
 
-## 7. Status Kesiapan Eksekusi (Readiness Assessment)
+## 7. Hal yang Memerlukan Konfirmasi Lebih Lanjut Dari User
 
-> **KESIMPULAN: Rencana implementasi ini 100% SIAP DIEKSEKUSI.**
+Sebelum eksekusi penulisan kode dilakukan, mohon konfirmasi untuk beberapa poin detail berikut:
 
- Seluruh spesifikasi arsitektur (*Shared Database Shared Schema*, `store_id` sebagai Tenant ID, UUID v4, *Soft Delete*, *Defensive Riverpod DI*, serta alur *Sign Up* Admin dengan *Nama Toko*) telah terdefinisi dengan jelas dan konsisten di seluruh layer. Tidak ada ambiguasi tersisa.
+1. **Pendaftaran Admin Baru (Sign Up):**
+   - Apakah saat pendaftaran akun Admin baru, user diminta menginputkan Nama Toko langsung di form pendaftaran, atau menggunakan nama default terlebih dahulu yang nanti bisa diubah di Pengaturan Toko?
+2. **Penghapusan / Status Nonaktif Kasir:**
+   - Ketika seorang Admin menonaktifkan atau menghapus akun kasir, apakah transaksi historis yang pernah dilakukan oleh kasir tersebut tetap harus tersimpan dalam laporan toko Admin tersebut? (Rekomendasi: Ya, transaksi tetap disimpan).
+3. **Kasir yang Membuat Shift / Transaksi:**
+   - Jika satu toko Admin memiliki 3 kasir, apakah semua kasir tersebut saling melihat produk & transaksi dalam toko yang sama? (Rekomendasi: Ya, karena mereka berada dalam 1 toko milik Admin yang sama).

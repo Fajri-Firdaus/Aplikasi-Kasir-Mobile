@@ -21,7 +21,7 @@ class MockProductNotifier extends ProductNotifier {
   }
 
   @override
-  Future<void> loadProducts() async {
+  Future<void> loadProducts({String? storeId}) async {
     // No-op
   }
 }

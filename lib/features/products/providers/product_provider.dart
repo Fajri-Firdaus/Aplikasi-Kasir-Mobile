@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/product.dart';
 import '../data/product_local_repository.dart';
 import '../../reports/providers/reports_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 
 // NotifierProvider for full CRUD support (required by tests & UI)
 final productNotifierProvider = NotifierProvider<ProductNotifier, List<Product>>(ProductNotifier.new);
@@ -15,14 +16,18 @@ class ProductNotifier extends Notifier<List<Product>> {
   @override
   List<Product> build() {
     _repository = ref.watch(productRepositoryProvider);
-    Future.microtask(() => loadProducts());
+    final storeId = ref.watch(activeStoreIdProvider);
+    Future.microtask(() => loadProducts(storeId: storeId));
     return [];
   }
 
-  Future<void> loadProducts() async {
+  Future<void> loadProducts({String? storeId}) async {
     try {
-      final list = await _repository.getAll();
-      state = list;
+      final activeStoreId = storeId ?? ref.read(activeStoreIdProvider);
+      final list = await _repository.getAll(storeId: activeStoreId);
+      if (ref.mounted) {
+        state = list;
+      }
     } catch (e) {
       // Fail silently or handle error in state
     }
@@ -30,7 +35,8 @@ class ProductNotifier extends Notifier<List<Product>> {
 
   Future<void> addProduct(Product product) async {
     try {
-      final newProduct = await _repository.create(product);
+      final storeId = ref.read(activeStoreIdProvider);
+      final newProduct = await _repository.create(product, storeId: storeId);
       state = [...state, newProduct];
       ref.read(reportsProvider.notifier).refresh();
     } catch (e) {

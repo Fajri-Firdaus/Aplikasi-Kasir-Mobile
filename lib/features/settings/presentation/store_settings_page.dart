@@ -98,7 +98,17 @@ class _StoreSettingsPageState extends ConsumerState<StoreSettingsPage> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
 
-    if (!_initialized) {
+    ref.listen<AppSettings>(settingsProvider, (previous, next) {
+      if (next.storeName.isNotEmpty && (previous?.storeName != next.storeName || !_initialized)) {
+        _nameCtrl.text = next.storeName;
+        _addressCtrl.text = next.storeAddress;
+        _phoneCtrl.text = next.storePhone;
+        _footerCtrl.text = next.receiptFooter;
+        _initialized = true;
+      }
+    });
+
+    if (!_initialized && settings.storeName.isNotEmpty) {
       _nameCtrl.text = settings.storeName;
       _addressCtrl.text = settings.storeAddress;
       _phoneCtrl.text = settings.storePhone;

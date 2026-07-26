@@ -55,15 +55,14 @@ void main() {
     // Wait for initial load
     await notifier.loadProducts();
     
-    // Seed data initial has ID 1 (Nasi Goreng Spesial)
+    // Seed data initial has seeded product (Nasi Goreng Spesial)
     final stateBefore = container.read(productNotifierProvider);
-    final hasId1 = stateBefore.any((p) => p.id == '1');
-    expect(hasId1, true);
-
-    await notifier.deleteProduct('1');
+    final targetProduct = stateBefore.firstWhere((p) => p.name == 'Nasi Goreng Spesial');
+    
+    await notifier.deleteProduct(targetProduct.id);
     
     final stateAfter = container.read(productNotifierProvider);
-    expect(stateAfter.any((p) => p.id == '1'), false);
+    expect(stateAfter.any((p) => p.id == targetProduct.id), false);
   });
 
   test('ProductNotifier updates product', () async {
@@ -72,21 +71,20 @@ void main() {
     
     await notifier.loadProducts();
     
-    final updatedProduct = const Product(
-      id: '1',
+    final stateBefore = container.read(productNotifierProvider);
+    final targetProduct = stateBefore.firstWhere((p) => p.name == 'Nasi Goreng Spesial');
+    
+    final updatedProduct = targetProduct.copyWith(
       name: 'Nasi Goreng Super Pedas',
       price: 27000,
       buyPrice: 18000,
-      category: 'Makanan',
-      imageUrl: '',
-      stock: 45,
       sku: 'MK001-NEW',
     );
     
-    await notifier.updateProduct('1', updatedProduct);
+    await notifier.updateProduct(targetProduct.id, updatedProduct);
     
     final state = container.read(productNotifierProvider);
-    final product = state.firstWhere((p) => p.id == '1');
+    final product = state.firstWhere((p) => p.id == targetProduct.id);
     expect(product.name, 'Nasi Goreng Super Pedas');
     expect(product.price, 27000);
     expect(product.buyPrice, 18000);

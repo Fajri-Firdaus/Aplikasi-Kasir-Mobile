@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/app_settings.dart';
 import '../data/settings_local_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
 
@@ -10,18 +11,24 @@ class SettingsNotifier extends Notifier<AppSettings> {
   @override
   AppSettings build() {
     _repository = ref.watch(settingsRepositoryProvider);
-    Future.microtask(() => loadSettings());
-    return const AppSettings(
-      storeName: 'Mobile POS Dashboard',
-      storeAddress: 'Jl. Merdeka No. 123',
-      storePhone: '08123456789',
+    final storeId = ref.watch(activeStoreIdProvider);
+
+    Future.microtask(() => loadSettings(storeId: storeId));
+    return AppSettings(
+      id: storeId,
+      storeName: '',
+      storeAddress: '',
+      storePhone: '',
     );
   }
 
-  Future<void> loadSettings() async {
+  Future<void> loadSettings({String? storeId}) async {
     try {
-      final settings = await _repository.getSettings();
-      state = settings;
+      final activeStoreId = storeId ?? ref.read(activeStoreIdProvider);
+      final res = await _repository.getSettings(storeId: activeStoreId);
+      if (ref.mounted) {
+        state = res;
+      }
     } catch (e) {
       // Handle error
     }
@@ -30,23 +37,25 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> updateStoreName(String name) async {
     final updated = state.copyWith(storeName: name);
     state = updated;
-    await _repository.updateSettings(updated);
+    await updateSettings(updated);
   }
 
   Future<void> updateStoreAddress(String address) async {
     final updated = state.copyWith(storeAddress: address);
     state = updated;
-    await _repository.updateSettings(updated);
+    await updateSettings(updated);
   }
 
   Future<void> updateStorePhone(String phone) async {
     final updated = state.copyWith(storePhone: phone);
     state = updated;
-    await _repository.updateSettings(updated);
+    await updateSettings(updated);
   }
 
   Future<void> updateSettings(AppSettings settings) async {
-    state = settings;
-    await _repository.updateSettings(settings);
+    final storeId = ref.read(activeStoreIdProvider);
+    final toSave = settings.copyWith(id: settings.id ?? storeId);
+    state = toSave;
+    await _repository.updateSettings(toSave, storeId: storeId);
   }
 }
