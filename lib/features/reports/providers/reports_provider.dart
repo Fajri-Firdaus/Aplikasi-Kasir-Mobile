@@ -19,6 +19,7 @@ class ReportData {
   final List<TopProduct> topProducts;
   final List<LowStockItem> lowStockProducts;
   final CustomerReportSummary? customerSummary;
+  final StaffReportSummary? staffSummary;
 
   const ReportData({
     required this.totalRevenue,
@@ -34,6 +35,7 @@ class ReportData {
     required this.topProducts,
     required this.lowStockProducts,
     this.customerSummary,
+    this.staffSummary,
   });
 
   double get totalHpp => totalExpense;
@@ -91,6 +93,7 @@ class ReportsNotifier extends Notifier<ReportData> {
       final List<TopProduct> top = await _repository.getTopProducts(start, end, storeId: activeStoreId);
       final List<LowStockItem> lowStock = await _repository.getLowStockProducts(storeId: activeStoreId);
       final CustomerReportSummary customerSum = await _repository.getCustomerReportSummary(startDate: start, endDate: end, storeId: activeStoreId);
+      final StaffReportSummary staffSum = await _repository.getStaffReportSummary(startDate: start, endDate: end, storeId: activeStoreId);
 
       // Ensure all 24 hours are represented, mapping DB's 00:00 to 24:00 if needed
       final List<HourlySales> fullHourly = List.generate(24, (index) {
@@ -128,6 +131,7 @@ class ReportsNotifier extends Notifier<ReportData> {
           topProducts: top,
           lowStockProducts: lowStock,
           customerSummary: customerSum,
+          staffSummary: staffSum,
         );
       }
     } catch (e) {

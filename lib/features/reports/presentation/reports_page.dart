@@ -114,7 +114,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                   ),
                   SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
-                    child: _buildStaffTab(),
+                    child: _buildStaffTab(reportData),
                   ),
                   SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -367,35 +367,183 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     ]);
   }
 
-  Widget _buildStaffTab() {
-    final staff = [
-      {'name': 'Budi Santoso', 'role': 'Kasir', 'trx': 28, 'total': 'Rp 1.250.000'},
-      {'name': 'Sari Wijaya', 'role': 'Kasir', 'trx': 20, 'total': 'Rp 1.200.000'},
-    ];
-    return Column(children: [
-      _sectionTitle('Kinerja Operasional & SDM', Icons.people_outline, const Color(0xFF4F46E5)),
-      const SizedBox(height: 12),
-      ...staff.map((s) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
-          child: Row(children: [
-            Container(width: 44, height: 44, decoration: const BoxDecoration(color: Color(0xFFDBEAFE), shape: BoxShape.circle),
-                child: Center(child: Text('${s['name']}'.split(' ').map((n) => n[0]).join(), style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF2563EB))))),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('${s['name']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              Text('${s['role']}', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-            ])),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('${s['trx']} transaksi', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB))),
-              Text('${s['total']}', style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.w600)),
-            ]),
-          ]),
+  Widget _buildStaffTab(ReportData reportData) {
+    final summary = reportData.staffSummary;
+    final totalStaff = summary?.totalStaff ?? 0;
+    final activeStaff = summary?.activeStaffCount ?? 0;
+    final totalShifts = summary?.totalShiftsWorked ?? 0;
+    final totalRevenue = summary?.totalStaffRevenue ?? 0.0;
+    final staffList = summary?.staffList ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _statCard(
+                'Total Staf Terdaftar',
+                '$totalStaff Staf',
+                Icons.badge_outlined,
+                const Color(0xFF4F46E5),
+                const Color(0xFFEEF2FF),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statCard(
+                'Kasir Aktif',
+                '$activeStaff Orang',
+                Icons.verified_user_outlined,
+                const Color(0xFF10B981),
+                const Color(0xFFD1FAE5),
+              ),
+            ),
+          ],
         ),
-      )),
-    ]);
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _statCard(
+                'Total Shift Dijalankan',
+                '$totalShifts Shift',
+                Icons.access_time_filled_outlined,
+                const Color(0xFFD97706),
+                const Color(0xFFFEF3C7),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statCard(
+                'Omset SDM / Kasir',
+                'Rp ${_formatCurrency(totalRevenue.toInt())}',
+                Icons.payments_outlined,
+                const Color(0xFF2563EB),
+                const Color(0xFFDBEAFE),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _sectionTitle(
+          'Kinerja Operasional & SDM',
+          Icons.people_outline,
+          const Color(0xFF4F46E5),
+          onActionTap: () => context.go('/reports/all-staff'),
+          actionLabel: 'Lihat Detail',
+        ),
+        const SizedBox(height: 12),
+        if (staffList.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              children: const [
+                Icon(Icons.people_outline, size: 48, color: Color(0xFF9CA3AF)),
+                SizedBox(height: 8),
+                Text('Belum ada data kinerja staf', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+              ],
+            ),
+          )
+        else
+          ...staffList.map((s) {
+            final initials = s.name.trim().isNotEmpty
+                ? s.name.trim().split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase()
+                : 'ST';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEEF2FF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF4F46E5),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  s.name.isNotEmpty ? s.name : s.username,
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: s.role.toLowerCase() == 'admin' ? const Color(0xFFFEF3C7) : const Color(0xFFE0E7FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  s.role.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: s.role.toLowerCase() == 'admin' ? const Color(0xFFD97706) : const Color(0xFF4F46E5),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${s.totalShifts} shift • @${s.username}',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${s.totalTransactions} transaksi',
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB)),
+                        ),
+                        Text(
+                          'Rp ${_formatCurrency(s.totalSales.toInt())}',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
   }
 
   Widget _buildCustomerTab(ReportData reportData) {

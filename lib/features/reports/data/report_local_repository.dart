@@ -104,14 +104,42 @@ class LowStockItem {
 }
 
 class CashierPerformance {
+  final String id;
+  final String name;
   final String username;
+  final String role;
+  final bool isActive;
+  final int totalShifts;
   final int totalTransactions;
   final double totalSales;
 
   CashierPerformance({
+    this.id = '',
+    this.name = '',
     required this.username,
+    this.role = 'cashier',
+    this.isActive = true,
+    this.totalShifts = 0,
     required this.totalTransactions,
     required this.totalSales,
+  });
+
+  double get averageTransactionValue => totalTransactions > 0 ? totalSales / totalTransactions : 0.0;
+}
+
+class StaffReportSummary {
+  final int totalStaff;
+  final int activeStaffCount;
+  final int totalShiftsWorked;
+  final double totalStaffRevenue;
+  final List<CashierPerformance> staffList;
+
+  StaffReportSummary({
+    required this.totalStaff,
+    required this.activeStaffCount,
+    required this.totalShiftsWorked,
+    required this.totalStaffRevenue,
+    required this.staffList,
   });
 }
 
@@ -795,5 +823,77 @@ class ReportLocalRepository {
         totalSpent: (row['total_spent'] as num?)?.toDouble() ?? 0.0,
       );
     }).toList();
+  }
+
+  Future<StaffReportSummary> getStaffReportSummary({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? storeId,
+  }) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
+    final db = await _dbService.database;
+
+    final countRes = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM users WHERE store_id = ?',
+      [activeStoreId],
+    );
+    final totalStaff = countRes.isNotEmpty ? ((countRes.first['count'] as int?) ?? 0) : 0;
+
+    String dateFilter = '';
+    List<dynamic> whereArgs = [];
+
+    if (startDate != null && endDate != null) {
+      final startStr = '${startDate.toIso8601String().split('T').first} 00:00:00';
+      final endStr = '${endDate.toIso8601String().split('T').first} 23:59:59';
+      dateFilter = " AND DATETIME(t.created_at, 'localtime') BETWEEN ? AND ? ";
+      whereArgs = [startStr, endStr, activeStoreId];
+    } else {
+      whereArgs = [activeStoreId];
+    }
+
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+        u.id,
+        COALESCE(u.full_name, u.username, 'Kasir') as name,
+        u.username,
+        u.role,
+        COALESCE(u.is_active, 1) as is_active,
+        COUNT(DISTINCT s.id) as total_shifts,
+        COUNT(DISTINCT t.id) as total_txns,
+        COALESCE(SUM(t.total_amount), 0.0) as total_sales
+      FROM users u
+      LEFT JOIN shifts s ON s.user_id = u.id AND s.store_id = u.store_id
+      LEFT JOIN transactions t ON t.shift_id = s.id AND t.status != 'void' $dateFilter
+      WHERE u.store_id = ?
+      GROUP BY u.id, u.full_name, u.username, u.role, u.is_active
+      ORDER BY total_sales DESC, total_txns DESC, u.username ASC
+    ''', whereArgs);
+
+    final staffList = maps.map((row) {
+      final totalTx = (row['total_txns'] as int? ?? 0);
+      final totalRev = (row['total_sales'] as num? ?? 0.0).toDouble();
+      return CashierPerformance(
+        id: (row['id'] ?? '').toString(),
+        name: (row['name'] ?? 'Kasir').toString(),
+        username: (row['username'] ?? '').toString(),
+        role: (row['role'] ?? 'cashier').toString(),
+        isActive: (row['is_active'] as int? ?? 1) == 1,
+        totalShifts: (row['total_shifts'] as int? ?? 0),
+        totalTransactions: totalTx,
+        totalSales: totalRev,
+      );
+    }).toList();
+
+    final activeStaffCount = staffList.where((s) => s.totalTransactions > 0).length;
+    final totalShiftsWorked = staffList.fold<int>(0, (sum, s) => sum + s.totalShifts);
+    final totalStaffRevenue = staffList.fold<double>(0.0, (sum, s) => sum + s.totalSales);
+
+    return StaffReportSummary(
+      totalStaff: totalStaff,
+      activeStaffCount: activeStaffCount,
+      totalShiftsWorked: totalShiftsWorked,
+      totalStaffRevenue: totalStaffRevenue,
+      staffList: staffList,
+    );
   }
 }

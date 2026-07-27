@@ -3,13 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_pos_flutter/core/data/local_database_service.dart';
 import 'package:mobile_pos_flutter/features/reports/data/report_local_repository.dart';
-import 'package:mobile_pos_flutter/features/reports/presentation/all_customers_report_page.dart';
+import 'package:mobile_pos_flutter/features/reports/presentation/all_staff_report_page.dart';
 import '../../test_helper.dart';
 
 void main() {
   setupTestDatabase();
 
-  testWidgets('AllCustomersReportPage renders period filters, summary cards, and search', (WidgetTester tester) async {
+  testWidgets('AllStaffReportPage renders metrics, period chips, search bar, and staff list', (WidgetTester tester) async {
     final container = ProviderContainer(
       overrides: [
         localDatabaseServiceProvider.overrideWith((ref) => LocalDatabaseService(isTesting: true)),
@@ -24,18 +24,18 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: const MaterialApp(
-          home: AllCustomersReportPage(),
+          home: AllStaffReportPage(),
         ),
       ),
     );
 
     await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('Laporan Detail Pelanggan'), findsOneWidget);
-    expect(find.text('Total Pelanggan'), findsOneWidget);
-    expect(find.text('Transaksi Pelanggan'), findsOneWidget);
-    expect(find.text('Omset Pelanggan'), findsOneWidget);
-    expect(find.text('Rata-rata Belanja'), findsOneWidget);
+    expect(find.text('Laporan Detail SDM & Kasir'), findsOneWidget);
+    expect(find.text('Total Staf'), findsOneWidget);
+    expect(find.text('Kasir Aktif'), findsOneWidget);
+    expect(find.text('Total Shift'), findsOneWidget);
+    expect(find.text('Omset SDM'), findsOneWidget);
 
     expect(find.text('Hari Ini'), findsOneWidget);
     expect(find.text('Minggu Ini'), findsOneWidget);
@@ -45,7 +45,7 @@ void main() {
     expect(find.text('SQLite DB'), findsOneWidget);
   });
 
-  testWidgets('getAllCustomersReport fetches customer sales with date filter correctly', (WidgetTester tester) async {
+  testWidgets('getStaffReportSummary fetches staff performance from SQLite database', (WidgetTester tester) async {
     await tester.runAsync(() async {
       final container = ProviderContainer(
         overrides: [
@@ -57,13 +57,15 @@ void main() {
         final repo = container.read(reportRepositoryProvider);
         final now = DateTime.now();
 
-        final result = await repo.getAllCustomersReport(
+        final summary = await repo.getStaffReportSummary(
           startDate: DateTime(now.year, now.month, 1),
           endDate: DateTime(now.year, now.month + 1, 0),
           storeId: 'store-uuid-001',
         );
 
-        expect(result, isNotNull);
+        expect(summary, isNotNull);
+        expect(summary.totalStaff, greaterThanOrEqualTo(0));
+        expect(summary.staffList, isA<List<CashierPerformance>>());
       } finally {
         await container.read(localDatabaseServiceProvider).close();
         container.dispose();

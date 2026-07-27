@@ -14,6 +14,7 @@ import '../../features/reports/presentation/all_transactions_page.dart';
 import '../../features/reports/presentation/all_product_performance_page.dart';
 import '../../features/reports/presentation/all_inventory_stock_page.dart';
 import '../../features/reports/presentation/all_customers_report_page.dart';
+import '../../features/reports/presentation/all_staff_report_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/settings/presentation/profile_page.dart';
 import '../../features/settings/presentation/store_settings_page.dart';
@@ -121,6 +122,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'all-customers',
                     builder: (context, state) => const AllCustomersReportPage(),
+                  ),
+                  GoRoute(
+                    path: 'all-staff',
+                    builder: (context, state) => const AllStaffReportPage(),
                   ),
                 ],
               ),
