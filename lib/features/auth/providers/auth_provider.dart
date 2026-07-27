@@ -80,7 +80,7 @@ class AuthNotifier extends Notifier<AppUser?> {
     } catch (_) {}
 
     try {
-      ref.read(cartProvider.notifier).clearCart();
+      _invalidateAllDomainProviders();
     } catch (_) {}
 
     state = null;

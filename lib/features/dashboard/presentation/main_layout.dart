@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/presentation/widgets/restart_widget.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class MainLayout extends ConsumerWidget {
@@ -61,7 +62,12 @@ class MainLayout extends ConsumerWidget {
                         padding: const EdgeInsets.only(bottom: 24.0),
                         child: IconButton(
                           icon: const Icon(Icons.logout, color: AppColors.destructive),
-                          onPressed: () => ref.read(authProvider.notifier).logout(),
+                          onPressed: () async {
+                            await ref.read(authProvider.notifier).logout();
+                            if (context.mounted) {
+                              RestartWidget.restartApp(context);
+                            }
+                          },
                         ),
                       ),
                     ),
