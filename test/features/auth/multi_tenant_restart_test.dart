@@ -40,7 +40,7 @@ void main() {
 
     // Trigger restartApp
     await tester.tap(find.byType(ElevatedButton));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     // Verify build count incremented due to subtree recreation
     expect(find.text('Build Count: 2'), findsOneWidget);

@@ -427,7 +427,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           ],
         ),
         const SizedBox(height: 24),
-        _sectionTitle('10 Pelanggan Teratas (Top Buyers)', Icons.star_outline, const Color(0xFFD97706)),
+        _sectionTitle(
+          '10 Pelanggan Teratas (Top Buyers)',
+          Icons.star_outline,
+          const Color(0xFFD97706),
+          onActionTap: () => context.go('/reports/all-customers'),
+          actionLabel: 'Lihat Detail',
+        ),
         const SizedBox(height: 12),
         if (topCustomers.isEmpty)
           Container(

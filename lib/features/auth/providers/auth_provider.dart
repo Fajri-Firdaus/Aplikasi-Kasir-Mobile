@@ -10,6 +10,7 @@ import '../../settings/providers/settings_provider.dart';
 import '../../users/providers/users_provider.dart';
 import '../../reports/providers/reports_provider.dart';
 import '../../reports/providers/transactions_report_provider.dart';
+import '../../customers/providers/customer_provider.dart';
 
 final authProvider = NotifierProvider<AuthNotifier, AppUser?>(AuthNotifier.new);
 
@@ -33,6 +34,7 @@ class AuthNotifier extends Notifier<AppUser?> {
     ref.invalidate(closedShiftsProvider);
     ref.invalidate(dailyReportsProvider);
     ref.invalidate(allTransactionsNotifierProvider);
+    ref.invalidate(customerProvider);
   }
 
   Future<void> _checkLoginStatus() async {

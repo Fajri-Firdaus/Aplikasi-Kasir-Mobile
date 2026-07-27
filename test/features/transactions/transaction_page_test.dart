@@ -51,7 +51,7 @@ class MockCustomerNotifier extends CustomerNotifier {
   }
 
   @override
-  Future<Customer> addCustomer(String name, String phone) async {
+  Future<Customer> addCustomer(String name, String phone, {String? storeId}) async {
     final customer = Customer(
       id: (_mockCustomers.length + 1).toString(),
       name: name,

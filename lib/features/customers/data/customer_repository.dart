@@ -12,10 +12,13 @@ class CustomerRepository {
 
   CustomerRepository(this._dbService);
 
-  Future<List<Customer>> getAll() async {
+  Future<List<Customer>> getAll({String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'customers',
+      where: 'store_id = ?',
+      whereArgs: [activeStoreId],
       orderBy: 'name ASC',
     );
     return maps.map((row) {
@@ -28,17 +31,25 @@ class CustomerRepository {
     }).toList();
   }
 
-  Future<Customer> create(String name, String phone) async {
+  Future<Customer> create(String name, String phone, {String? storeId}) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
     final db = await _dbService.database;
-    final id = await db.insert('customers', {
+    final newId = 'cust_${DateTime.now().millisecondsSinceEpoch}';
+    final nowStr = DateTime.now().toIso8601String();
+
+    await db.insert('customers', {
+      'id': newId,
+      'store_id': activeStoreId,
       'name': name.trim(),
       'phone': phone.trim().isEmpty ? null : phone.trim(),
+      'created_at': nowStr,
     });
+
     return Customer(
-      id: id.toString(),
+      id: newId,
       name: name.trim(),
       phone: phone.trim().isEmpty ? null : phone.trim(),
-      createdAt: DateTime.now().toIso8601String(),
+      createdAt: nowStr,
     );
   }
 }

@@ -87,6 +87,8 @@ class TopCustomer {
     required this.totalTransactions,
     required this.totalSpent,
   });
+
+  double get averageSpent => totalTransactions > 0 ? totalSpent / totalTransactions : 0.0;
 }
 
 class LowStockItem {
@@ -750,5 +752,48 @@ class ReportLocalRepository {
       averageTransactionValue: avgValue,
       topCustomers: topCustomers,
     );
+  }
+
+  Future<List<TopCustomer>> getAllCustomersReport({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? storeId,
+  }) async {
+    final activeStoreId = (storeId != null && storeId.isNotEmpty) ? storeId : 'store-uuid-001';
+    final db = await _dbService.database;
+
+    String dateFilter = '';
+    List<dynamic> whereArgs = [];
+
+    if (startDate != null && endDate != null) {
+      final startStr = '${startDate.toIso8601String().split('T').first} 00:00:00';
+      final endStr = '${endDate.toIso8601String().split('T').first} 23:59:59';
+      dateFilter = " AND DATETIME(t.created_at, 'localtime') BETWEEN ? AND ? ";
+      whereArgs = [startStr, endStr, activeStoreId];
+    } else {
+      whereArgs = [activeStoreId];
+    }
+
+    final result = await db.rawQuery(
+      '''
+      SELECT c.id, c.name, c.phone, COUNT(t.id) as trans_count, COALESCE(SUM(t.total_amount), 0.0) as total_spent
+      FROM customers c
+      LEFT JOIN transactions t ON CAST(c.id AS TEXT) = CAST(t.customer_id AS TEXT) AND t.status != 'void' $dateFilter
+      WHERE c.store_id = ?
+      GROUP BY c.id, c.name, c.phone
+      ORDER BY total_spent DESC
+      ''',
+      whereArgs,
+    );
+
+    return result.map((row) {
+      return TopCustomer(
+        id: (row['id'] ?? '').toString(),
+        name: (row['name'] as String?) ?? 'Pelanggan',
+        phone: row['phone'] as String?,
+        totalTransactions: (row['trans_count'] as int?) ?? 0,
+        totalSpent: (row['total_spent'] as num?)?.toDouble() ?? 0.0,
+      );
+    }).toList();
   }
 }
