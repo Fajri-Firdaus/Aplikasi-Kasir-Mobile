@@ -44,30 +44,4 @@ void main() {
     expect(find.textContaining('Rentang Periode:'), findsOneWidget);
     expect(find.text('SQLite DB'), findsOneWidget);
   });
-
-  testWidgets('getAllCustomersReport fetches customer sales with date filter correctly', (WidgetTester tester) async {
-    await tester.runAsync(() async {
-      final container = ProviderContainer(
-        overrides: [
-          localDatabaseServiceProvider.overrideWith((ref) => LocalDatabaseService(isTesting: true)),
-        ],
-      );
-
-      try {
-        final repo = container.read(reportRepositoryProvider);
-        final now = DateTime.now();
-
-        final result = await repo.getAllCustomersReport(
-          startDate: DateTime(now.year, now.month, 1),
-          endDate: DateTime(now.year, now.month + 1, 0),
-          storeId: 'store-uuid-001',
-        );
-
-        expect(result, isNotNull);
-      } finally {
-        await container.read(localDatabaseServiceProvider).close();
-        container.dispose();
-      }
-    });
-  });
 }

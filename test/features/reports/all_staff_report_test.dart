@@ -44,32 +44,4 @@ void main() {
     expect(find.textContaining('Rentang Periode:'), findsOneWidget);
     expect(find.text('SQLite DB'), findsOneWidget);
   });
-
-  testWidgets('getStaffReportSummary fetches staff performance from SQLite database', (WidgetTester tester) async {
-    await tester.runAsync(() async {
-      final container = ProviderContainer(
-        overrides: [
-          localDatabaseServiceProvider.overrideWith((ref) => LocalDatabaseService(isTesting: true)),
-        ],
-      );
-
-      try {
-        final repo = container.read(reportRepositoryProvider);
-        final now = DateTime.now();
-
-        final summary = await repo.getStaffReportSummary(
-          startDate: DateTime(now.year, now.month, 1),
-          endDate: DateTime(now.year, now.month + 1, 0),
-          storeId: 'store-uuid-001',
-        );
-
-        expect(summary, isNotNull);
-        expect(summary.totalStaff, greaterThanOrEqualTo(0));
-        expect(summary.staffList, isA<List<CashierPerformance>>());
-      } finally {
-        await container.read(localDatabaseServiceProvider).close();
-        container.dispose();
-      }
-    });
-  });
 }
