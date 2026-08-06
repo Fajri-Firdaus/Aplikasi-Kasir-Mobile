@@ -1,6 +1,6 @@
-# SQLite Database Schema - Mobile POS (Improved)
+# SQLite Database Schema - Mobile POS (Multi-Tenant)
 
-Dokumen ini adalah versi terbaru yang diselaraskan dengan fitur pada mindmap dan implementasi `database.sql`. Database mencakup manajemen Shift, User, Pelanggan, Kategori, dan Pengaturan Toko.
+Dokumen ini mencatat skema faktual database SQLite pada aplikasi **Mobile POS Flutter** (`local_database_service.dart`). Database ini menggunakan arsitektur **Shared Database, Shared Schema** berbasis `store_id` (*Multi-Tenancy*) dengan dukungan *Soft Delete* (`is_active`).
 
 ## Database Name: `mobile_pos.db`
 **Version:** 1
@@ -9,228 +9,201 @@ Dokumen ini adalah versi terbaru yang diselaraskan dengan fitur pada mindmap dan
 
 ## 1. Tabel Master Data
 
-### 1.1 `users`
-Data kasir/admin aplikasi. Digunakan untuk login dan manajemen profil.
+### 1.1 `stores`
+Entitas toko/tenant utama. Setiap Admin memiliki 1 unit toko yang terdaftar.
 | Kolom | Tipe Data | Constraint | Deskripsi |
 |-------|-----------|------------|-----------|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | |
+| `id` | TEXT | PRIMARY KEY | ID unik Toko (String UUID / Timestamp) |
+| `owner_id` | TEXT | NOT NULL | User ID pemilik toko (Admin) |
+| `store_name` | TEXT | NOT NULL | Nama Toko |
+| `store_address` | TEXT | | Alamat Toko |
+| `store_phone` | TEXT | | Nomor telepon Toko |
+| `receipt_footer`| TEXT | | Pesan di bawah struk belanja |
+| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Tanggal pembuatan toko |
+
+### 1.2 `users`
+Data kasir dan admin aplikasi per toko.
+| Kolom | Tipe Data | Constraint | Deskripsi |
+|-------|-----------|------------|-----------|
+| `id` | TEXT | PRIMARY KEY | ID unik pengguna |
 | `full_name` | TEXT | | Nama lengkap pengguna |
-| `email` | TEXT | UNIQUE | Untuk fitur *Forgot Password* |
-| `username` | TEXT | NOT NULL UNIQUE | |
-| `password` | TEXT | NOT NULL | Hashed password |
-| `role` | TEXT | NOT NULL DEFAULT 'cashier' | 'admin' atau 'cashier' |
-| `admin_id` | INTEGER | FK -> `users(id)` | Parent admin ID (Inheritance) |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+| `email` | TEXT | UNIQUE | Email pengguna (Forgot password / Sign up) |
+| `username` | TEXT | NOT NULL UNIQUE | Username login |
+| `password` | TEXT | NOT NULL | Password |
+| `role` | TEXT | NOT NULL DEFAULT 'cashier' | `'admin'` atau `'cashier'` |
+| `admin_id` | TEXT | | ID Admin pengampu (untuk kasir) |
+| `store_id` | TEXT | FK -> `stores(id)` | Identifikasi toko tempat user bertugas |
+| `is_active` | INTEGER | DEFAULT 1 | 1=Aktif, 0=Dinonaktifkan (*Soft Delete*) |
+| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Waktu pendaftaran |
 
-### 1.2 `categories`
-Katalog kategori produk.
+### 1.3 `categories`
+Katalog kategori produk terisolasi per toko.
 | Kolom | Tipe Data | Constraint | Deskripsi |
 |-------|-----------|------------|-----------|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | |
-| `name` | TEXT | NOT NULL UNIQUE | |
+| `id` | TEXT | PRIMARY KEY | ID unik kategori |
+| `store_id` | TEXT | NOT NULL, FK -> `stores(id)` | Mengikat kategori ke toko tertentu |
+| `name` | TEXT | NOT NULL | Nama kategori |
+| `is_active` | INTEGER | DEFAULT 1 | 1=Aktif, 0=Soft Deleted |
+| *Composite* | UNIQUE | `UNIQUE(store_id, name)` | Nama kategori unik di dalam toko yang sama |
 
-### 1.3 `products`
-Katalog produk. Mendukung fitur pencarian SKU dan teks.
+### 1.4 `products`
+Katalog produk per toko. Mendukung pencarian SKU/barcode dan nama.
 | Kolom | Tipe Data | Constraint | Deskripsi |
 |-------|-----------|------------|-----------|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | |
-| `sku` | TEXT | UNIQUE | Kode unik/Barcode |
-| `name` | TEXT | NOT NULL | |
-| `category_id` | INTEGER | FK -> `categories(id)` | |
-| `buy_price` | REAL | NOT NULL DEFAULT 0.0 | Modal saat ini |
+| `id` | TEXT | PRIMARY KEY | ID unik produk |
+| `store_id` | TEXT | NOT NULL, FK -> `stores(id)` | Mengikat produk ke toko tertentu |
+| `sku` | TEXT | | Kode unik SKU / Barcode |
+| `name` | TEXT | NOT NULL | Nama produk |
+| `category_id` | TEXT | FK -> `categories(id)` | Kategori produk |
+| `buy_price` | REAL | NOT NULL DEFAULT 0.0 | Harga modal (HPP) saat ini |
 | `sell_price` | REAL | NOT NULL DEFAULT 0.0 | Harga jual saat ini |
-| `stock` | INTEGER | DEFAULT 0 | |
-| `image_path` | TEXT | | Lokasi file gambar lokal |
-| `is_active` | INTEGER | DEFAULT 1 | 1=Aktif, 0=Nonaktif (*Soft Delete*) |
+| `stock` | INTEGER | DEFAULT 0 | Jumlah stok tersedia |
+| `image_path` | TEXT | | Lokasi file gambar produk |
+| `is_active` | INTEGER | DEFAULT 1 | 1=Aktif, 0=Soft Deleted |
+| *Composite* | UNIQUE | `UNIQUE(store_id, sku)` | SKU unik di dalam toko yang sama |
 
-### 1.4 `customers`
-Data pelanggan tetap untuk analisis loyalitas.
+### 1.5 `customers`
+Data pelanggan tetap per toko untuk analisis loyalitas.
 | Kolom | Tipe Data | Constraint | Deskripsi |
 |-------|-----------|------------|-----------|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | |
-| `name` | TEXT | NOT NULL | |
-| `phone` | TEXT | | |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+| `id` | TEXT | PRIMARY KEY | ID unik pelanggan |
+| `store_id` | TEXT | NOT NULL, FK -> `stores(id)` | Toko pemilik pelanggan |
+| `name` | TEXT | NOT NULL | Nama pelanggan |
+| `phone` | TEXT | | Nomor telepon |
+| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Waktu terdaftar |
 
-### 1.5 `store_settings`
-Menyimpan informasi identitas toko untuk pengaturan dan struk.
+### 1.6 `store_settings` (Legacy Fallback Singleton)
+Digunakan untuk kompatibilitas fallback singleton lokal.
 | Kolom | Tipe Data | Constraint | Deskripsi |
 |-------|-----------|------------|-----------|
 | `id` | INTEGER | PRIMARY KEY CHECK (id=1) | Singleton (Hanya 1 baris) |
-| `store_name` | TEXT | NOT NULL | |
-| `store_address` | TEXT | | |
-| `store_phone` | TEXT | | |
-| `receipt_footer`| TEXT | | Pesan di bawah struk |
-| `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+| `store_name` | TEXT | NOT NULL | Nama toko fallback |
+| `store_address` | TEXT | | Alamat toko fallback |
+| `store_phone` | TEXT | | Telepon toko fallback |
+| `receipt_footer`| TEXT | | Pesan footer struk fallback |
+| `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Waktu pembaruan |
 
 ---
 
 ## 2. Tabel Operasional (Shift & Transaksi)
 
 ### 2.1 `shifts`
-Mencatat sesi kasir untuk audit saldo laci (Laporan X/Z).
+Encapsulation sesi kerja kasir untuk audit saldo laci kasir (Laporan X/Z).
 | Kolom | Tipe Data | Constraint | Deskripsi |
 |-------|-----------|------------|-----------|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | |
-| `user_id` | INTEGER | FK -> `users(id)` | |
-| `start_time` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
-| `end_time` | TIMESTAMP | | |
-| `starting_cash`| REAL | DEFAULT 0.0 | Saldo awal laci |
-| `ending_cash` | REAL | DEFAULT 0.0 | Saldo akhir laci (setoran) |
-| `status` | TEXT | CHECK IN ('open','closed') | DEFAULT 'open' |
-| `shift_number` | INTEGER | DEFAULT 1 | Urutan shift keberapa pada hari tersebut |
+| `id` | TEXT | PRIMARY KEY | ID unik shift |
+| `store_id` | TEXT | NOT NULL, FK -> `stores(id)` | Toko tempat shift berlangsung |
+| `user_id` | TEXT | NOT NULL, FK -> `users(id)` | Kasir yang bertugas |
+| `start_time` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Waktu buka shift |
+| `end_time` | TIMESTAMP | | Waktu tutup shift |
+| `starting_cash`| REAL | DEFAULT 0.0 | Saldo kas awal modal laci |
+| `ending_cash` | REAL | DEFAULT 0.0 | Setoran saldo fisik akhir laci |
+| `status` | TEXT | CHECK (status IN ('open','closed')) | Status shift (`'open'`/`'closed'`) |
+| `shift_number` | INTEGER | DEFAULT 1 | Urutan shift kasir pada hari tersebut |
 
 ### 2.2 `transactions`
-Header transaksi. Mendukung pembatalan (*void*).
+Header transaksi penjualan. Mendukung pembatalan (*void*).
 | Kolom | Tipe Data | Constraint | Deskripsi |
 |-------|-----------|------------|-----------|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | |
-| `shift_id` | INTEGER | FK -> `shifts(id)` | Kasir yang bertugas |
-| `customer_id` | INTEGER | FK -> `customers(id)` | Bisa NULL |
-| `total_amount` | REAL | NOT NULL | Total akhir |
-| `payment_method`| TEXT | NOT NULL | 'cash', 'qris', dll |
-| `cash_received` | REAL | DEFAULT 0.0 | Uang yang diterima kasir |
-| `status` | TEXT | CHECK IN ('completed','void')| DEFAULT 'completed' |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+| `id` | TEXT | PRIMARY KEY | ID unik transaksi |
+| `store_id` | TEXT | NOT NULL, FK -> `stores(id)` | Toko tempat transaksi dibuat |
+| `shift_id` | TEXT | NOT NULL, FK -> `shifts(id)` | Sesi shift kasir saat transaksi |
+| `customer_id` | TEXT | FK -> `customers(id)` | ID Pelanggan (Bisa NULL) |
+| `total_amount` | REAL | NOT NULL | Total nominal belanja |
+| `payment_method`| TEXT | NOT NULL | `'cash'`, `'qris'`, dll |
+| `cash_received` | REAL | DEFAULT 0.0 | Uang tunai yang diterima |
+| `status` | TEXT | CHECK (status IN ('completed','void'))| Status transaksi (`'completed'`/`'void'`) |
+| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Waktu transaksi dibuat |
 
 ### 2.3 `transaction_details`
-Item detail transaksi. Digunakan untuk perhitungan HPP dan Laba.
+Detail item produk yang dibeli per transaksi. Menyimpan snapshot harga saat transaksi.
 | Kolom | Tipe Data | Constraint | Deskripsi |
 |-------|-----------|------------|-----------|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | |
-| `transaction_id`| INTEGER | FK -> `transactions(id)` | |
-| `product_id` | INTEGER | FK -> `products(id)` | |
-| `quantity` | INTEGER | NOT NULL | |
-| `buy_price_at_sale` | REAL | NOT NULL | Modal saat transaksi |
-| `sell_price_at_sale`| REAL | NOT NULL | Harga jual saat transaksi |
+| `id` | TEXT | PRIMARY KEY | ID detail transaksi |
+| `transaction_id`| TEXT | NOT NULL, FK -> `transactions(id)` | Relasi ke header transaksi |
+| `product_id` | TEXT | NOT NULL, FK -> `products(id)` | Relasi ke produk |
+| `quantity` | INTEGER | NOT NULL | Jumlah item dibeli |
+| `buy_price_at_sale` | REAL | NOT NULL | Snapshot HPP/Modal saat penjualan |
+| `sell_price_at_sale`| REAL | NOT NULL | Snapshot Harga Jual saat penjualan |
 
 ---
 
+## 3. Indeks Database (Indexes)
 
-## 3. Draf Kueri Lengkap (Dari database.sql)
+Untuk menjaga performa query SQLite pada multi-tenant:
+- `CREATE INDEX idx_products_store ON products(store_id);`
+- `CREATE INDEX idx_transactions_store ON transactions(store_id);`
+- `CREATE INDEX idx_shifts_store ON shifts(store_id);`
+- `CREATE INDEX idx_users_store ON users(store_id);`
 
-### 3.1. Modul Home (Halaman Utama)
+---
 
-**A. Ringkasan Performa Hari Ini**
-Mengambil total transaksi, total omzet penjualan, dan laba bersih hari ini.
+## 4. Kueri Produksi SQLite (Faktual Codebase)
+
+### 4.1 Modul Laporan Keuangan (Omzet, HPP, Laba Bersih)
 ```sql
 SELECT 
-    COUNT(t.id) AS total_transaksi,
-    COALESCE(SUM(t.total_amount), 0.0) AS penjualan_hari_ini,
-    COALESCE(SUM(td.quantity * (td.sell_price_at_sale - td.buy_price_at_sale)), 0.0) AS laba_bersih
+  t.id,
+  t.created_at,
+  t.status,
+  t.total_amount,
+  COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS total_hpp
 FROM transactions t
 LEFT JOIN transaction_details td ON t.id = td.transaction_id
-WHERE DATE(t.created_at) = DATE('now', 'localtime');
+WHERE t.store_id = ? AND t.status != 'void'
+GROUP BY t.id;
 ```
 
-**B. Tren Penjualan Hari Ini (Grafik Berdasarkan Jam)**
-Mengelompokkan total penjualan per jam untuk visualisasi.
+### 4.2 Modul Produk Terlaris (Top Products)
 ```sql
 SELECT 
-    STRFTIME('%H:00', t.created_at) AS jam,
-    SUM(t.total_amount) AS total_omzet
-FROM transactions t
-WHERE DATE(t.created_at) = DATE('now', 'localtime')
-GROUP BY jam
-ORDER BY jam ASC;
+  p.id AS product_id,
+  p.name,
+  td.quantity,
+  td.sell_price_at_sale,
+  t.created_at,
+  t.status
+FROM products p
+LEFT JOIN transaction_details td ON p.id = td.product_id
+LEFT JOIN transactions t ON td.transaction_id = t.id
+WHERE p.store_id = ? AND p.is_active = 1;
 ```
 
-**C. Menampilkan 5 Produk Terlaris Hari Ini**
-Mengidentifikasi 5 produk dengan akumulasi penjualan tertinggi khusus hari ini.
+### 4.3 Peringatan Stok Menipis (Low Stock Alert)
+```sql
+SELECT p.name, p.stock, COALESCE(c.name, 'Tanpa Kategori') as category_name
+FROM products p
+LEFT JOIN categories c ON p.category_id = c.id
+WHERE p.store_id = ? AND p.is_active = 1 AND p.stock <= 10
+ORDER BY p.stock ASC 
+LIMIT 10;
+```
+
+### 4.4 Kinerja Kasir (Staff Performance)
 ```sql
 SELECT 
-    p.name,
-    SUM(td.quantity) AS total_terjual
-FROM transaction_details td
-JOIN products p ON td.product_id = p.id
-JOIN transactions t ON td.transaction_id = t.id
-WHERE DATE(t.created_at) = DATE('now', 'localtime')
-GROUP BY p.id
-ORDER BY total_terjual DESC
-LIMIT 5;
-```
-
-**D. Peringatan Stok Menipis (Widget Summary)**
-Mengambil 3 produk dengan stok paling sedikit.
-```sql
-SELECT name, stock 
-FROM products 
-ORDER BY stock ASC 
-LIMIT 3;
-```
-
-**E. Aksi "Lihat Semua Produk" dari Alert Stok**
-```sql
-SELECT id, sku, name, stock, buy_price, sell_price, image_path 
-FROM products 
-ORDER BY stock ASC;
-```
-
-### 3.2. Modul Transaksi (Layar Kasir & Keranjang)
-
-**A. Pencarian Produk Berdasarkan Teks & SKU**
-```sql
-SELECT * FROM products 
-WHERE sku = ? OR name LIKE ? 
-LIMIT 20;
-```
-
-**B. Filter Berdasarkan Kategori**
-```sql
-SELECT p.* FROM products p
-JOIN categories c ON p.category_id = c.id
-WHERE c.name = ? 
-ORDER BY p.name ASC;
-```
-
-### 3.3. Modul Laporan & Analitik
-
-**A. Tab Keuangan (Filter Berdasarkan Waktu)**
-```sql
-SELECT 
-    COALESCE(SUM(t.total_amount), 0.0) AS total_pendapatan,
-    COALESCE(SUM(td.quantity * td.buy_price_at_sale), 0.0) AS total_hpp,
-    COALESCE(SUM(td.quantity * (td.sell_price_at_sale - td.buy_price_at_sale)), 0.0) AS total_keuntungan
-FROM transactions t
-JOIN transaction_details td ON t.id = td.transaction_id
-WHERE t.created_at BETWEEN ? AND ?;
-```
-
-**B. Tab SDM (Kinerja Operasional Kasir)**
-```sql
-SELECT 
-    u.username,
-    COUNT(t.id) AS total_transaksi_ditangani,
-    SUM(t.total_amount) AS total_nominal_penjualan
+  COALESCE(u.full_name, u.username, 'Kasir') as username,
+  COUNT(DISTINCT t.id) as total_txns,
+  COALESCE(SUM(t.total_amount), 0.0) as total_sales
 FROM transactions t
 JOIN shifts s ON t.shift_id = s.id
 JOIN users u ON s.user_id = u.id
+WHERE t.store_id = ? AND t.status != 'void'
 GROUP BY u.id
-ORDER BY total_nominal_penjualan DESC;
+ORDER BY total_sales DESC;
 ```
 
-**C. Tab Pelanggan**
+### 4.5 Laporan X/Z Shift Kasir
 ```sql
-SELECT 
-    (SELECT COUNT(*) FROM customers) AS total_pelanggan,
-    COALESCE(AVG(total_amount), 0.0) AS rata_rata_transaksi
-FROM transactions;
-```
-
-**D. Tab X/Z Report (Validasi Saldo Sebelum Tutup Shift)**
-```sql
-SELECT 
-    s.starting_cash,
-    COALESCE(SUM(t.total_amount), 0.0) AS total_penjualan_tunai,
-    (s.starting_cash + COALESCE(SUM(t.total_amount), 0.0)) AS ekspektasi_uang_fisik
-FROM shifts s
-LEFT JOIN transactions t ON t.shift_id = s.id AND t.payment_method = 'cash'
-WHERE s.id = ? AND s.status = 'open';
+SELECT COALESCE(SUM(total_amount), 0.0) AS total
+FROM transactions
+WHERE shift_id = ? AND payment_method = 'cash' AND status != 'void';
 ```
 
 ---
 
-## Sinkronisasi Data & Integritas
-1. **Soft Delete**: Produk menggunakan `is_active = 0` alih-alih dihapus permanen agar riwayat transaksi tetap valid.
-2. **Transaction Void**: Transaksi yang dibatalkan hanya berubah status menjadi `void`, saldo tidak dihitung dalam laporan keuangan namun tetap ada dalam riwayat audit.
-3. **Singleton Store Settings**: Tabel `store_settings` hanya diizinkan memiliki 1 baris untuk konsistensi identitas toko di seluruh aplikasi.
+## 5. Sinkronisasi & Integritas Data Multi-Tenant
+1. **Pemisahan `store_id` Mandatori:** Setiap repositori menjamin seluruh pembacaan/penulisan menyertakan filter `store_id`.
+2. **Soft Delete Standard:** Penonaktifan produk/kategori/kasir menggunakan `is_active = 0` sehingga relasi transaksi masa lalu tidak rusak (*foreign key integrity*).
+3. **Void Restoration:** Pembatalan transaksi (`status = 'void'`) mengembalikan kuantitas stok ke tabel `products` secara otomatis melalui SQLite Transaction.
+

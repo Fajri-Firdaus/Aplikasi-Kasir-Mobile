@@ -1,54 +1,62 @@
 # Ringkasan Proyek: Mobile POS Flutter
 
 ## 1. Deskripsi Proyek
-Aplikasi Mobile Point of Sales (POS) yang dirancang untuk membantu pengelolaan transaksi penjualan, inventaris produk, dan laporan keuangan secara mobile. Aplikasi ini menggunakan arsitektur berbasis fitur (feature-driven) untuk memudahkan skalabilitas dan pemeliharaan kode.
+Aplikasi Mobile Point of Sales (POS) multi-tenant yang dirancang untuk mengelola transaksi penjualan, inventaris produk, shift kasir, laporan keuangan, dan manajemen pengguna secara offline-first. Aplikasi ini menerapkan arsitektur berbasis fitur (**Feature-First Architecture**) dan pendataan terisolasi per toko (**Multi-Tenancy**) berbasis `store_id`.
 
-## 2. Tech Stack
-### Frontend
-- **Framework:** Flutter SDK ^3.11.4
-- **State Management:** [Riverpod](https://riverpod.dev/) (menggunakan `NotifierProvider` untuk logika bisnis).
-- **Routing:** [Go Router](https://pub.dev/packages/go_router) untuk navigasi deklaratif.
-- **UI & Styling:** Material Design 3, Google Fonts, dan Custom Theme.
+## 2. Tech Stack & Dependensi
+### Frontend & State Management
+- **Framework:** Flutter SDK `^3.11.4` (Material 3 enabled).
+- **State Management:** [Riverpod](https://riverpod.dev/) (`flutter_riverpod: ^3.3.1`) menggunakan `NotifierProvider`, `Provider`, dan `Notifier` untuk mengelola logika bisnis secara deklaratif dan reaktif.
+- **Routing:** [Go Router](https://pub.dev/packages/go_router) (`^17.2.3`) menggunakan `StatefulShellRoute.indexedStack` dengan 5 cabang navigasi utama dan sub-rute deklaratif.
+- **UI & Styling:** Google Fonts (`google_fonts: ^8.1.0`), Cupertino Icons, dan Custom Theme (`AppTheme`, `AppColors`).
 
-### Backend & API
-- **HTTP Client:** [Dio](https://pub.dev/packages/dio) (sudah terkonfigurasi di `pubspec.yaml`, siap digunakan untuk integrasi API).
-- **Status Saat Ini:** Implementasi penyimpanan lokal permanen menggunakan SQLite. Prototype UI masih didukung oleh repository lokal yang mengambil data dari database nyata.
+### Backend & Storage
+- **Local Storage / Persistence:** [SQLite (`sqflite: ^2.3.0`, `sqflite_common_ffi: ^2.3.0`)](https://pub.dev/packages/sqflite) sebagai database relasional utama offline-first.
+- **HTTP Client:** [Dio](https://pub.dev/packages/dio) (`^5.9.2`) siap digunakan untuk integrasi API eksternal/cloud.
+- **Simple Preferences:** [Shared Preferences](https://pub.dev/packages/shared_preferences) (`^2.5.5`) untuk menyimpan status autentikasi dan ID pengguna yang sedang login.
+- **Serialization & Utilities:** [Freezed](https://pub.dev/packages/freezed) (`^3.2.5`), [JSON Serializable](https://pub.dev/packages/json_serializable) (`^6.13.2`), `uuid: ^4.5.1`, dan `path_provider: ^2.1.1`.
 
-### Database & Persistence
-- **Local Storage:** [SQLite (sqflite)](https://pub.dev/packages/sqflite) digunakan sebagai penyimpanan database relasional utama untuk produk, transaksi, shift, dan user.
-- **Data Serialization:** [Freezed](https://pub.dev/packages/freezed) dan [JSON Serializable](https://pub.dev/packages/json_serializable) digunakan untuk memetakan data database ke objek Dart.
-- **Simple Persistence:** [Shared Preferences](https://pub.dev/packages/shared_preferences) digunakan untuk menyimpan pengaturan aplikasi ringan.
+## 3. Fitur Utama & Sistem Multi-Toko (Multi-Tenancy)
+- **Sistem Multi-Toko (Multi-Tenancy):**
+  - Data terisolasi penuh berbasis `store_id`.
+  - Pendaftaran Admin baru secara otomatis membuat record toko (`stores`) baru.
+  - Akun kasir/karyawan terikat pada `store_id` Admin pengampunya.
+  - Saat login/logout, Riverpod memvalidasi dan menginvalidasikan seluruh provider domain data secara otomatis (`_invalidateAllDomainProviders()`).
+- **Autentikasi & Shift Kasir:**
+  - Login/Logout, Sign Up Admin (dengan input nama toko).
+  - Manajemen shift (Open Shift dengan modal awal, Close Shift dengan setoran akhir, Laporan X/Z, tracking laci kasir).
+- **Katalog Produk & Kategori:**
+  - SKU/Barcode, nama produk, kategori per toko, harga beli (HPP), harga jual, dan stok.
+  - Fitur pencarian SKU & nama, filter kategori, serta pembatalan soft delete (`is_active = 1`).
+- **Transaksi POS & Keranjang:**
+  - Multi-item cart dengan manajemen kuantitas dan stok real-time.
+  - Checkout atomic ACID di SQLite (insert transaction header, details, dan pemotongan stok otomatis).
+  - Pembatalan transaksi (*Void*) dengan pengembalian stok otomatis.
+  - Generasi urutan nomor struk harian (*daily transaction sequence*) per hari.
+- **Laporan & Analitik Komprehensif:**
+  - **Laporan Keuangan:** Total Omzet, HPP, Laba Bersih, Grafik Penjualan (Jam, Harian/Mingguan, Bulanan).
+  - **Laporan Produk:** 5 Produk Terlaris dan Halaman Performa Seluruh Produk.
+  - **Laporan Inventaris:** Alert Stok Menipis (<= 10) dan Halaman Stok Seluruh Inventaris.
+  - **Laporan Pelanggan:** Ringkasan Analisis Pelanggan & Halaman Detail Laporan Pelanggan.
+  - **Laporan SDM / Staff:** Kinerja Kasir & Halaman Laporan Kinerja Staff.
+- **Pengaturan & Manajemen User:**
+  - Manajemen Pengguna/Staff (Tambah Kasir, Soft Delete Kasir).
+  - Pengaturan Profil Pengguna & Pengaturan Identitas Toko (Store Settings).
 
-## 3. Fitur Utama & Struktur Data
-- **Manajemen Katalog:** Produk dengan SKU, kategori, stok, serta pelacakan harga beli (modal) dan harga jual.
-- **Manajemen Shift:** Pelacakan saldo laci kasir (starting/ending cash) dan audit penjualan per sesi kasir.
-- **Transaksi & Inventaris:** Pencatatan detail transaksi dengan snapshot harga historis dan otomatisasi pemotongan stok.
-- **Laporan Cerdas:** Query agregat untuk menghitung keuntungan bersih, pendapatan per kategori, dan peringatan stok menipis.
+## 4. Coding Standards & Arsitektur
+- **Feature-First Architecture:**
+  - `lib/core/`: Berisi logika bersama seperti `local_database_service.dart`, `app_router.dart`, `app_theme.dart`, `restart_widget.dart`, dan interface repositori.
+  - `lib/features/`: Terbagi menjadi 8 modul fitur (`auth`, `customers`, `dashboard`, `products`, `reports`, `settings`, `transactions`, `users`). Setiap fitur memiliki struktur `data/`, `presentation/`, dan `providers/`.
+- **Naming Conventions:**
+  - File: `snake_case.dart`
+  - Class: `PascalCase`
+  - Variable/Method: `camelCase`
+- **Integritas Data:**
+  - Menggunakan *Soft Delete* (`is_active = 0`) untuk menjaga integritas riwayat transaksi historis.
+  - Kueri SQLite memfilter `WHERE store_id = ?` untuk menjamin isolasi data multi-tenant.
 
-## 4. Coding Standards
-### Arsitektur
-Menggunakan pola **Feature-First Architecture**:
-- `lib/core/`: Berisi logika bersama seperti routing, tema, antarmuka hardware (printer/scanner), dan konfigurasi global.
-- `lib/features/`: Modul-modul fitur (auth, products, transactions, dll) yang masing-masing memiliki folder `data`, `presentation`, dan `providers`.
+## 5. Testing Workflow
+- **Framework:** `flutter_test` (bawaan Flutter).
+- **Struktur Tes:** Berada di `test/features/` yang mencerminkan hirarki `lib/features/`.
+- **Status Pengujian:** 33 unit dan widget test lulus 100% (mencakup Auth Multi-Tenant Isolation, Multi-Tenant Restart, Cart Provider, Product Notifier, Customer Repository, Reports Provider & UI Pages, Transaction Sequence, dan Users Notifier).
 
-### Naming & Style
-- **File Naming:** Menggunakan `snake_case` (contoh: `app_router.dart`).
-- **Class Naming:** Menggunakan `PascalCase` (contoh: `ProductNotifier`).
-- **Variable/Method:** Menggunakan `camelCase`.
-- **Linting:** Mengikuti standar `flutter_lints` untuk memastikan kualitas dan konsistensi kode.
-
-### Types
-- Mengutamakan **Strong Typing** pada Dart.
-- Penggunaan objek **Immutable** dengan pola `copyWith` untuk pembaruan state yang aman.
-
-## 4. Testing Workflow
-### Framework
-- **Primary:** `flutter_test` (bawaan Flutter).
-
-### Aturan & Struktur
-- Folder tes berada di `test/` dan mengikuti struktur folder `lib/features/` untuk kemudahan pelacakan.
-- **Unit Testing:** Difokuskan pada pengujian logika bisnis di dalam `Notifier` menggunakan `ProviderContainer`.
-- **Widget Testing:** Tersedia untuk memvalidasi komponen UI (contoh: `widget_test.dart`).
-
-### Cakupan (Coverage)
-- Saat ini pengujian mencakup logika CRUD pada provider utama (seperti `ProductNotifier`) untuk memastikan integritas data sebelum ditampilkan di UI.
