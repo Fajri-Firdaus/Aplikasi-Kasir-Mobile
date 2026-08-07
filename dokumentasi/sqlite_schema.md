@@ -72,17 +72,6 @@ Data pelanggan tetap per toko untuk analisis loyalitas.
 | `phone` | TEXT | | Nomor telepon |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Waktu terdaftar |
 
-### 1.6 `store_settings` (Legacy Fallback Singleton)
-Digunakan untuk kompatibilitas fallback singleton lokal.
-| Kolom | Tipe Data | Constraint | Deskripsi |
-|-------|-----------|------------|-----------|
-| `id` | INTEGER | PRIMARY KEY CHECK (id=1) | Singleton (Hanya 1 baris) |
-| `store_name` | TEXT | NOT NULL | Nama toko fallback |
-| `store_address` | TEXT | | Alamat toko fallback |
-| `store_phone` | TEXT | | Telepon toko fallback |
-| `receipt_footer`| TEXT | | Pesan footer struk fallback |
-| `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Waktu pembaruan |
-
 ---
 
 ## 2. Tabel Operasional (Shift & Transaksi)

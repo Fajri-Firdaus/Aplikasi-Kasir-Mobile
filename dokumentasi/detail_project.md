@@ -33,7 +33,7 @@ Mengadopsi pola **Feature-First Architecture** dengan pemisahan tegas antara `co
 
 ### `lib/core/` (Modul Global Lintas Fitur)
 * `core/data/`
-  * `local_database_service.dart`: Pengelola database SQLite (`mobile_pos.db`). Bertanggung jawab atas pembuatan 9 tabel (`stores`, `users`, `categories`, `products`, `customers`, `store_settings`, `shifts`, `transactions`, `transaction_details`), migrasi alter table, penambahan index (`idx_products_store`, `idx_transactions_store`, `idx_shifts_store`, `idx_users_store`), serta seeding data default.
+  * `local_database_service.dart`: Pengelola database SQLite (`mobile_pos.db`). Bertanggung jawab atas pembuatan 8 tabel (`stores`, `users`, `categories`, `products`, `customers`, `shifts`, `transactions`, `transaction_details`), migrasi alter table, penambahan index (`idx_products_store`, `idx_transactions_store`, `idx_shifts_store`, `idx_users_store`), serta seeding data default.
   * `repository_interface.dart`: Generic interface CRUD (`getAll`, `getById`, `create`, `update`, `delete`).
 * `core/presentation/widgets/`
   * `restart_widget.dart`: Widget wrapper untuk mereset seluruh pohon widget (widget tree) saat switch tenant/toko atau logout.

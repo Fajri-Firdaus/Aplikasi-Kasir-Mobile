@@ -183,19 +183,7 @@ class LocalDatabaseService {
       )
     ''');
 
-    // 6. Table store_settings (Legacy compatibility singleton view)
-    await db.execute('''
-      CREATE TABLE store_settings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        store_name TEXT NOT NULL,
-        store_address TEXT,
-        store_phone TEXT,
-        receipt_footer TEXT,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    ''');
-
-    // 7. Table shifts
+    // 6. Table shifts
     await db.execute('''
       CREATE TABLE shifts (
         id TEXT PRIMARY KEY,
@@ -212,7 +200,7 @@ class LocalDatabaseService {
       )
     ''');
 
-    // 8. Table transactions
+    // 7. Table transactions
     await db.execute('''
       CREATE TABLE transactions (
         id TEXT PRIMARY KEY,
@@ -230,7 +218,7 @@ class LocalDatabaseService {
       )
     ''');
 
-    // 9. Table transaction_details
+    // 8. Table transaction_details
     await db.execute('''
       CREATE TABLE transaction_details (
         id TEXT PRIMARY KEY,
@@ -272,15 +260,6 @@ class LocalDatabaseService {
       'store_id': defaultStoreId,
       'admin_id': defaultAdminId,
       'is_active': 1,
-    });
-
-    // Seed legacy store_settings for fallback compatibility
-    await db.insert('store_settings', {
-      'id': 1,
-      'store_name': 'Mobile POS Dashboard',
-      'store_address': 'Jl. Merdeka No. 123',
-      'store_phone': '08123456789',
-      'receipt_footer': 'Terima kasih atas kunjungan Anda!',
     });
 
     // Seed default category

@@ -61,19 +61,6 @@ class SettingsLocalRepository {
       whereArgs: [targetStoreId],
     );
 
-    try {
-      await db.update(
-        'store_settings',
-        {
-          'store_name': settings.storeName,
-          'store_address': settings.storeAddress,
-          'store_phone': settings.storePhone,
-          'receipt_footer': settings.receiptFooter,
-        },
-        where: 'id = 1',
-      );
-    } catch (_) {}
-
     return settings;
   }
 
