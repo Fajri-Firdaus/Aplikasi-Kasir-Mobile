@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_pos_flutter/core/data/local_database_service.dart';
-import 'package:mobile_pos_flutter/features/reports/data/report_local_repository.dart';
 import 'package:mobile_pos_flutter/features/reports/presentation/all_customers_report_page.dart';
 import '../../test_helper.dart';
 

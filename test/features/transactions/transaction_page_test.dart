@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_pos_flutter/features/transactions/presentation/transaction_page.dart';
-import 'package:mobile_pos_flutter/features/transactions/providers/cart_provider.dart';
 import 'package:mobile_pos_flutter/features/products/providers/product_provider.dart';
 import 'package:mobile_pos_flutter/features/products/data/product.dart';
 import 'package:mobile_pos_flutter/features/reports/providers/reports_provider.dart';

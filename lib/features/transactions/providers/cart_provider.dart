@@ -15,9 +15,11 @@ class CartNotifier extends Notifier<List<CartItem>> {
   List<CartItem> build() => [];
 
   void addProduct(Product product) {
+    if (product.stock <= 0) return;
     final existingIndex = state.indexWhere((item) => item.product.id == product.id);
     if (existingIndex >= 0) {
       final existingItem = state[existingIndex];
+      if (existingItem.quantity >= product.stock) return;
       state = [
         ...state.sublist(0, existingIndex),
         existingItem.copyWith(quantity: existingItem.quantity + 1),
@@ -36,6 +38,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
     final existingIndex = state.indexWhere((item) => item.product.id == productId);
     if (existingIndex >= 0) {
       final existingItem = state[existingIndex];
+      if (newQuantity > existingItem.product.stock) return;
       state = [
         ...state.sublist(0, existingIndex),
         existingItem.copyWith(quantity: newQuantity),
@@ -61,6 +64,10 @@ class CartNotifier extends Notifier<List<CartItem>> {
     required double cashReceived,
     String? customerId,
   }) async {
+    if (paymentMethod == 'cash' && cashReceived < totalAmount) {
+      throw Exception('Uang pembayaran kurang dari total tagihan.');
+    }
+
     final repository = ref.read(transactionRepositoryProvider);
     final productNotifier = ref.read(productNotifierProvider.notifier);
 
