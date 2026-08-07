@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../reports/providers/reports_provider.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../../../core/utils/role_extension.dart';
 
 class PerformanceSummary extends ConsumerWidget {
   const PerformanceSummary({super.key});
@@ -8,6 +10,8 @@ class PerformanceSummary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reportData = ref.watch(reportsProvider);
+    final user = ref.watch(authProvider);
+    final isCashier = user.isCashier;
 
     final stats = [
       _StatItem(
@@ -24,13 +28,14 @@ class PerformanceSummary extends ConsumerWidget {
         iconColor: const Color(0xFF2563EB),
         iconBgColor: const Color(0xFFDBEAFE),
       ),
-      _StatItem(
-        label: 'Laba Bersih',
-        value: 'Rp ${_formatCurrency(reportData.netProfit.toInt())}',
-        icon: Icons.account_balance_wallet_outlined,
-        iconColor: const Color(0xFF7C3AED),
-        iconBgColor: const Color(0xFFEDE9FE),
-      ),
+      if (!isCashier)
+        _StatItem(
+          label: 'Laba Bersih',
+          value: 'Rp ${_formatCurrency(reportData.netProfit.toInt())}',
+          icon: Icons.account_balance_wallet_outlined,
+          iconColor: const Color(0xFF7C3AED),
+          iconBgColor: const Color(0xFFEDE9FE),
+        ),
     ];
 
     return Container(

@@ -4,6 +4,8 @@ import '../../products/providers/product_provider.dart';
 import '../../products/data/product.dart';
 import '../../products/data/product_local_repository.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/role_extension.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
   const ProductsPage({super.key});
@@ -23,6 +25,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(productsProvider);
+    final user = ref.watch(authProvider);
+    final isAdmin = user.isAdmin;
+
     final categories = ['Semua', ...products.map((p) => p.category).toSet().toList()];
     final filtered = products.where((p) {
       final matchSearch = p.name.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -53,18 +58,19 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                           ],
                         ),
                       ),
-                      ElevatedButton.icon(
-                        onPressed: () => _showProductForm(context, null),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Tambah'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                      if (isAdmin)
+                        ElevatedButton.icon(
+                          onPressed: () => _showProductForm(context, null),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Tambah'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -177,7 +183,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                           const SizedBox(height: 4),
                           Text(_searchQuery.isNotEmpty ? 'Coba kata kunci lain' : 'Mulai tambahkan produk baru',
                               style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
-                          if (_searchQuery.isEmpty) ...[
+                          if (_searchQuery.isEmpty && isAdmin) ...[
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: () => _showProductForm(context, null),
@@ -194,6 +200,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (_, i) => _ProductListCard(
                         product: filtered[i],
+                        showBuyPrice: isAdmin,
+                        showActions: isAdmin,
                         onEdit: () => _showProductForm(context, filtered[i]),
                         onDelete: () => _confirmDelete(context, filtered[i]),
                       ),
@@ -206,6 +214,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 
   void _showProductForm(BuildContext context, Product? product) {
+    final user = ref.read(authProvider);
+    if (!user.isAdmin) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -247,7 +258,15 @@ class _ProductListCard extends StatelessWidget {
   final Product product;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  const _ProductListCard({required this.product, required this.onEdit, required this.onDelete});
+  final bool showBuyPrice;
+  final bool showActions;
+  const _ProductListCard({
+    required this.product,
+    required this.onEdit,
+    required this.onDelete,
+    this.showBuyPrice = true,
+    this.showActions = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -314,21 +333,24 @@ class _ProductListCard extends StatelessWidget {
                     children: [
                       Text('Jual: Rp ${_formatCurrency(product.price)}',
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
-                      const SizedBox(width: 8),
-                      Text('Beli: Rp ${_formatCurrency(product.buyPrice)}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+                      if (showBuyPrice) ...[
+                        const SizedBox(width: 8),
+                        Text('Beli: Rp ${_formatCurrency(product.buyPrice)}',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+                      ],
                     ],
                   ),
                 ],
               ),
             ),
           ),
-          Column(
-            children: [
-              IconButton(icon: const Icon(Icons.edit_outlined, size: 20, color: Color(0xFF2563EB)), onPressed: onEdit),
-              IconButton(icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFDC2626)), onPressed: onDelete),
-            ],
-          ),
+          if (showActions)
+            Column(
+              children: [
+                IconButton(icon: const Icon(Icons.edit_outlined, size: 20, color: Color(0xFF2563EB)), onPressed: onEdit),
+                IconButton(icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFDC2626)), onPressed: onDelete),
+              ],
+            ),
           const SizedBox(width: 4),
         ],
       ),

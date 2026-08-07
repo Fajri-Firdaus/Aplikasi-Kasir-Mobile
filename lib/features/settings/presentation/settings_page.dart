@@ -4,11 +4,16 @@ import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/presentation/widgets/restart_widget.dart';
 
+import '../../../core/utils/role_extension.dart';
+
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
+    final isCashier = user.isCashier;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
@@ -17,66 +22,129 @@ class SettingsPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Pengaturan',
-                style: TextStyle(
+              Text(
+                isCashier ? 'Lainnya' : 'Pengaturan',
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF111827),
                 ),
               ),
               const SizedBox(height: 20),
-              _SettingsGroup(
-                items: [
-                  _SettingsItem(
-                    icon: Icons.person_outline,
-                    iconColor: const Color(0xFF3B82F6),
-                    iconBg: const Color(0xFFDBEAFE),
-                    title: 'Profil Pengguna',
-                    subtitle: 'Kelola informasi akun Anda',
-                    onTap: () => context.go('/settings/profile'),
-                  ),
-                  _SettingsItem(
-                    icon: Icons.people_outline,
-                    iconColor: const Color(0xFF7C3AED),
-                    iconBg: const Color(0xFFEDE9FE),
-                    title: 'Manajemen User',
-                    subtitle: 'Kelola akun kasir dan admin',
-                    onTap: () => context.go('/settings/users'),
-                  ),
-                ],
+
+              // User Info Card for Cashier or Admin
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: const Color(0xFF3B82F6),
+                      child: Text(
+                        (user?.name.isNotEmpty == true ? user!.name[0] : 'U').toUpperCase(),
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name ?? 'Pengguna',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                          ),
+                          const SizedBox(height: 2),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isCashier ? const Color(0xFFE0E7FF) : const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              (user?.role ?? 'KASIR').toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: isCashier ? const Color(0xFF4F46E5) : const Color(0xFFD97706),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              _SettingsGroup(
-                items: [
-                  _SettingsItem(
-                    icon: Icons.store_outlined,
-                    iconColor: const Color(0xFF16A34A),
-                    iconBg: const Color(0xFFDCFCE7),
-                    title: 'Pengaturan Toko',
-                    subtitle: 'Nama toko, alamat, kontak',
-                    onTap: () => context.go('/settings/store'),
-                  ),
-                  _SettingsItem(
-                    icon: Icons.print_outlined,
-                    iconColor: const Color(0xFFF97316),
-                    iconBg: const Color(0xFFFFEDD5),
-                    title: 'Printer & Hardware',
-                    subtitle: 'Konfigurasi perangkat',
-                    onTap: () {},
-                  ),
-                  _SettingsItem(
-                    icon: Icons.info_outline,
-                    iconColor: const Color(0xFF6B7280),
-                    iconBg: const Color(0xFFF3F4F6),
-                    title: 'Tentang Aplikasi',
-                    subtitle: 'Versi 1.0.0',
-                    onTap: () {},
-                    showChevron: false,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              if (!isCashier) ...[
+                _SettingsGroup(
+                  items: [
+                    _SettingsItem(
+                      icon: Icons.person_outline,
+                      iconColor: const Color(0xFF3B82F6),
+                      iconBg: const Color(0xFFDBEAFE),
+                      title: 'Profil Pengguna',
+                      subtitle: 'Kelola informasi akun Anda',
+                      onTap: () => context.go('/settings/profile'),
+                    ),
+                    _SettingsItem(
+                      icon: Icons.people_outline,
+                      iconColor: const Color(0xFF7C3AED),
+                      iconBg: const Color(0xFFEDE9FE),
+                      title: 'Manajemen User',
+                      subtitle: 'Kelola akun kasir dan admin',
+                      onTap: () => context.go('/settings/users'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _SettingsGroup(
+                  items: [
+                    _SettingsItem(
+                      icon: Icons.store_outlined,
+                      iconColor: const Color(0xFF16A34A),
+                      iconBg: const Color(0xFFDCFCE7),
+                      title: 'Pengaturan Toko',
+                      subtitle: 'Nama toko, alamat, kontak',
+                      onTap: () => context.go('/settings/store'),
+                    ),
+                    _SettingsItem(
+                      icon: Icons.print_outlined,
+                      iconColor: const Color(0xFFF97316),
+                      iconBg: const Color(0xFFFFEDD5),
+                      title: 'Printer & Hardware',
+                      subtitle: 'Konfigurasi perangkat',
+                      onTap: () {},
+                    ),
+                    _SettingsItem(
+                      icon: Icons.info_outline,
+                      iconColor: const Color(0xFF6B7280),
+                      iconBg: const Color(0xFFF3F4F6),
+                      title: 'Tentang Aplikasi',
+                      subtitle: 'Versi 1.0.0',
+                      onTap: () {},
+                      showChevron: false,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+              ],
+
               SizedBox(
                 width: double.infinity,
                 height: 50,

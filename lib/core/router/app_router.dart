@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/role_extension.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/users/data/app_user.dart';
@@ -39,7 +40,6 @@ class RouterNotifier extends ChangeNotifier {
     );
   }
 }
-
 final routerNotifierProvider = Provider<RouterNotifier>((ref) {
   return RouterNotifier(ref);
 });
@@ -52,7 +52,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: routerNotifier,
     initialLocation: '/dashboard',
     redirect: (context, state) {
-      final isAuth = ref.read(authProvider) != null;
+      final user = ref.read(authProvider);
+      final isAuth = user != null;
       final loggingIn = state.uri.toString() == '/login';
       
       // If not logged in and not heading to login, redirect to login
@@ -60,6 +61,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       
       // If logged in and heading to login, redirect to home
       if (isAuth && loggingIn) return '/dashboard';
+
+      // Cashier route guard: block access to protected admin routes
+      if (isAuth && user.isCashier) {
+        final path = state.uri.toString();
+        if (path.startsWith('/reports') || path == '/settings/users' || path == '/settings/store') {
+          return '/dashboard';
+        }
+      }
       
       return null;
     },
