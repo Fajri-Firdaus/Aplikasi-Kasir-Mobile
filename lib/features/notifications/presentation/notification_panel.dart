@@ -61,38 +61,6 @@ class _NotificationPanelState extends ConsumerState<NotificationPanel> {
                       ),
                     ),
                   ),
-                  if (unreadCount > 0)
-                    TextButton.icon(
-                      onPressed: () {
-                        ref
-                            .read(notificationNotifierProvider.notifier)
-                            .markAllAsRead();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Semua notifikasi ditandai sebagai sudah dibaca'),
-                            duration: Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.done_all,
-                          size: 16, color: Color(0xFF2563EB)),
-                      label: const Text(
-                        'Tandai Dibaca Semua',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF2563EB),
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
                   if (allNotifications.isNotEmpty)
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert, color: Color(0xFF6B7280)),
@@ -140,7 +108,7 @@ class _NotificationPanelState extends ConsumerState<NotificationPanel> {
               ),
             ),
 
-            // Filter Chips
+            // Sub-header Row: Filter Chips
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
@@ -161,6 +129,50 @@ class _NotificationPanelState extends ConsumerState<NotificationPanel> {
                 ],
               ),
             ),
+
+            // Action Row: Tandai Dibaca Semua Button (underneath title & filter chips)
+            if (unreadCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: InkWell(
+                    onTap: () {
+                      ref
+                          .read(notificationNotifierProvider.notifier)
+                          .markAllAsRead();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Semua notifikasi ditandai sebagai sudah dibaca'),
+                          duration: Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.done_all,
+                              size: 15, color: Color(0xFF2563EB)),
+                          SizedBox(width: 6),
+                          Text(
+                            'Tandai Dibaca Semua',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2563EB),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
             const Divider(height: 1, color: Color(0xFFE5E7EB)),
 

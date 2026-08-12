@@ -1128,17 +1128,32 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.timer_outlined, color: Colors.white70, size: 16),
-                      const SizedBox(width: 6),
-                      Text('SHIFT #${shift.shiftId} (Ke-${shift.shiftNumber}) AKTIF', style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                    ],
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.timer_outlined, color: Colors.white70, size: 16),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'SHIFT #${shift.shiftId} (Ke-${shift.shiftNumber}) AKTIF',
+                            style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
-                    child: Text('Kasir: ${shift.username}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Kasir: ${shift.username}',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -1288,7 +1303,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: const Color(0xFF4B5563), fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12, color: const Color(0xFF4B5563), fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
           Text(value, style: TextStyle(fontSize: 12, color: color ?? const Color(0xFF111827), fontWeight: FontWeight.bold)),
         ],
       ),
@@ -1745,19 +1767,19 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
   Widget _statCard(String label, String value, IconData icon, Color color, Color bg) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
       child: Row(children: [
         Container(width: 40, height: 40, decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: color, size: 20)),
         const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)), maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 2),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280), height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 3),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+            child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
           ),
         ])),
       ]),
@@ -1851,9 +1873,17 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        isLabelVisible ? hourLabel : '',
-                        style: const TextStyle(fontSize: 9, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600),
+                      SizedBox(
+                        height: 14,
+                        child: Center(
+                          child: Text(
+                            isLabelVisible ? hourLabel : '',
+                            softWrap: false,
+                            maxLines: 1,
+                            overflow: TextOverflow.visible,
+                            style: const TextStyle(fontSize: 9, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600),
+                          ),
+                        ),
                       ),
                     ],
                   ),

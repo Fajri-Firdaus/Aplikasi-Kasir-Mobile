@@ -97,12 +97,20 @@ class MiniAnalyticsWidget extends ConsumerWidget {
                         ),
                         if (showLabel) ...[
                           const SizedBox(height: 4),
-                          Text(
-                            data.hour.split(':').first,
-                            style: const TextStyle(fontSize: 8, color: Color(0xFF6B7280)),
+                          SizedBox(
+                            height: 12,
+                            child: Center(
+                              child: Text(
+                                data.hour.split(':').first,
+                                softWrap: false,
+                                maxLines: 1,
+                                overflow: TextOverflow.visible,
+                                style: const TextStyle(fontSize: 8, color: Color(0xFF6B7280)),
+                              ),
+                            ),
                           ),
                         ] else ...[
-                          const SizedBox(height: 14), // Spacer to maintain alignment
+                          const SizedBox(height: 16), // Spacer to maintain alignment
                         ],
                       ],
                     ),

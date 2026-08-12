@@ -41,6 +41,5 @@ void main() {
     expect(find.text('Bulan Ini'), findsOneWidget);
     expect(find.text('Tahun Ini'), findsOneWidget);
     expect(find.textContaining('Rentang Periode:'), findsOneWidget);
-    expect(find.text('SQLite DB'), findsOneWidget);
   });
 }

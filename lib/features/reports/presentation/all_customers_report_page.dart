@@ -284,17 +284,6 @@ class _AllCustomersReportPageState extends ConsumerState<AllCustomersReportPage>
                               ),
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDB2777),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'SQLite DB',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -622,8 +611,8 @@ class _AllCustomersReportPageState extends ConsumerState<AllCustomersReportPage>
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
-                  maxLines: 1,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280), height: 1.2),
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

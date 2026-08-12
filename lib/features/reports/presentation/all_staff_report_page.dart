@@ -258,17 +258,6 @@ class _AllStaffReportPageState extends ConsumerState<AllStaffReportPage> {
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Text(
-              'SQLite DB',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10),
-            ),
-          ),
         ],
       ),
     );
