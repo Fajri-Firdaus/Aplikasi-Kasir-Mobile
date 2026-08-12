@@ -703,11 +703,15 @@ class _CartSheetState extends ConsumerState<_CartSheet> {
                                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                                             color: isSelected ? const Color(0xFF1D4ED8) : const Color(0xFF111827),
                                           ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                         if (c.phone != null && c.phone!.isNotEmpty)
                                           Text(
                                             c.phone!,
                                             style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                       ],
                                     ),
@@ -1036,10 +1040,15 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          widget.customer != null ? widget.customer!.name : 'Pelanggan Umum (Non-Member)',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF111827)),
+                        Expanded(
+                          child: Text(
+                            widget.customer != null ? widget.customer!.name : 'Pelanggan Umum (Non-Member)',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF111827)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(

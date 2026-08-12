@@ -506,8 +506,11 @@ class _AllCustomersReportPageState extends ConsumerState<AllCustomersReportPage>
                                     child: Text(
                                       cust.name,
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Text(
                                     'Rp ${_formatCurrency(cust.totalSpent.toInt())}',
                                     style: const TextStyle(
@@ -523,16 +526,23 @@ class _AllCustomersReportPageState extends ConsumerState<AllCustomersReportPage>
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.phone_outlined, size: 12, color: Color(0xFF6B7280)),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          (cust.phone != null && cust.phone!.isNotEmpty) ? cust.phone! : 'Tidak ada telepon',
-                                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                                        ),
-                                      ],
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.phone_outlined, size: 12, color: Color(0xFF6B7280)),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              (cust.phone != null && cust.phone!.isNotEmpty) ? cust.phone! : 'Tidak ada telepon',
+                                              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Text(
                                       '${cust.totalTransactions} Tx  |  Rata: Rp ${_formatCurrency(cust.averageSpent.toInt())}',
                                       style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), fontWeight: FontWeight.w500),
@@ -609,10 +619,15 @@ class _AllCustomersReportPageState extends ConsumerState<AllCustomersReportPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 4),
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),
@@ -621,9 +636,13 @@ class _AllCustomersReportPageState extends ConsumerState<AllCustomersReportPage>
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+            ),
           ),
           const SizedBox(height: 2),
           Text(

@@ -249,10 +249,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ],
         ),
         const SizedBox(height: 12),
-        const Center(
-          child: Text('Hint: password "123456"',
-              style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-        ),
+        // const Center(
+        //   child: Text('Hint: password "123456"',
+        //       style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+        // ),
       ],
     );
   }
