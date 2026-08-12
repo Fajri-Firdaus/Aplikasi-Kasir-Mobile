@@ -7,6 +7,7 @@ import '../../products/providers/product_provider.dart';
 import '../../reports/providers/reports_provider.dart';
 import '../../reports/providers/transactions_report_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(CartNotifier.new);
 
@@ -96,6 +97,9 @@ class CartNotifier extends Notifier<List<CartItem>> {
     for (final item in state) {
       productNotifier.decrementStock(item.product.id, item.quantity);
     }
+
+    // Trigger real transaction notification & sync low stock from DB
+    ref.read(notificationNotifierProvider.notifier).addTransactionNotification(createdTxn);
 
     clearCart();
     return createdTxn;

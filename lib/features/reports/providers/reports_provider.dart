@@ -4,6 +4,7 @@ import '../data/report_local_repository.dart';
 import 'transactions_report_provider.dart';
 import '../../transactions/data/transaction_local_repository.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 class ReportData {
   final double totalRevenue;
@@ -210,6 +211,10 @@ class ActiveShiftNotifier extends AsyncNotifier<ShiftSummary?> {
       ref.read(closedShiftsProvider.notifier).refreshHistory();
       ref.read(dailyReportsProvider.notifier).refreshHistory();
       
+      if (closedSummary != null) {
+        ref.read(notificationNotifierProvider.notifier).addShiftClosedNotification(closedSummary!, endingCash);
+      }
+
       return null; // Active shift is now closed (null)
     });
 

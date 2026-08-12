@@ -8,6 +8,8 @@ import 'widgets/quick_actions_widget.dart';
 import 'widgets/mini_analytics_widget.dart';
 import 'widgets/inventory_alerts_widget.dart';
 import '../../reports/providers/reports_provider.dart';
+import '../../notifications/presentation/notification_panel.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -24,11 +26,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     super.initState();
     Future.microtask(() {
       ref.read(reportsProvider.notifier).refresh();
+      ref.read(notificationNotifierProvider.notifier).syncFromDatabase();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
@@ -38,7 +43,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               children: [
                 ProfileHeader(
                   onNotificationTap: () => setState(() => _notificationOpen = !_notificationOpen),
-                  notificationCount: 3,
+                  notificationCount: unreadCount,
                 ),
                 Expanded(
                   child: SingleChildScrollView(
@@ -80,7 +85,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 right: 0,
                 width: MediaQuery.of(context).size.width * 0.85,
                 bottom: 0,
-                child: _NotificationPanel(
+                child: NotificationPanel(
                   onClose: () => setState(() => _notificationOpen = false),
                 ),
               ),
@@ -91,67 +96,3 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 }
 
-class _NotificationPanel extends StatelessWidget {
-  final VoidCallback onClose;
-  const _NotificationPanel({required this.onClose});
-
-  static const _notifications = [
-    {'icon': Icons.warning_amber_rounded, 'color': Color(0xFFEA580C), 'bg': Color(0xFFFFEDD5), 'title': 'Stok Menipis', 'body': 'Teh Tarik Original tersisa 8 unit', 'time': '5 menit lalu'},
-    {'icon': Icons.check_circle_outline, 'color': Color(0xFF16A34A), 'bg': Color(0xFFDCFCE7), 'title': 'Transaksi Selesai', 'body': 'Transaksi #T-042 berhasil', 'time': '12 menit lalu'},
-    {'icon': Icons.info_outline, 'color': Color(0xFF2563EB), 'bg': Color(0xFFDBEAFE), 'title': 'Pengingat Shift', 'body': 'Shift pagi segera berakhir', 'time': '1 jam lalu'},
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 16)],
-      ),
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-              child: Row(
-                children: [
-                  const Expanded(child: Text('Notifikasi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
-                  IconButton(icon: const Icon(Icons.close), onPressed: onClose),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: _notifications.map((n) {
-                  return ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: n['bg'] as Color,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(n['icon'] as IconData, color: n['color'] as Color, size: 20),
-                    ),
-                    title: Text('${n['title']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${n['body']}', style: const TextStyle(fontSize: 12)),
-                        Text('${n['time']}', style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-                      ],
-                    ),
-                    isThreeLine: true,
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
